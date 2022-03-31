@@ -94,7 +94,7 @@ static void print_subtree(const char* prefix, const char* path, char** l) {
         l = n;
     }
 }
-bool arg_list = true;
+bool arg_list = false;
 static void print_tree(char** l) {
     if (arg_list)
         strv_print(l);
@@ -133,7 +133,7 @@ static int find_nodes(sd_bus* bus, const char* service, const char* path, Set* p
     //    "org.freedesktop.DBus.Introspectable", "Introspect",
     //    &error, &reply, NULL);
 
-    r = introspect_path(bus, path, NULL, false, false, NULL, &xml, NULL);
+    r = introspect_path(bus, path, NULL, false, true, NULL, &xml, NULL);
     if (r <= 0) {
         printf("Failed to introspect object %s of service %s: %s\n",
             path, service, bus_error_message(&error, r));
@@ -161,7 +161,7 @@ static int tree_one(sd_bus* bus, const char* service) {
         int q;
 
         p = set_steal_first(paths);
-        printf("*** p = %s\n", p);
+        
         if (!p)
             break;
 
@@ -170,13 +170,15 @@ static int tree_one(sd_bus* bus, const char* service) {
             continue;
 
         q = find_nodes(bus, service, p, paths);
+        printf("*** find_nodes: %d\n", q);
         if (q < 0 && r >= 0)
             r = q;
 
         //q = set_ensure_consume(q < 0 ? &failed : &done, & string_hash_ops_free, TAKE_PTR(p));
+        printf("*** p = %s\n", p);
         q = set_ensure_consume(q < 0 ? &failed : &done, & string_hash_ops_free, /*TAKE_PTR*/(p));
         p = NULL;
-        printf("**** %d\n", q);
+        printf("*** set_ensure_consume: %d\n", q);
         assert(q != 0);
         if (q < 0)
             return log_oom();
@@ -254,6 +256,28 @@ static void test_vtable(void) {
     sd_bus_unref(bus);
 }
 
+void test_set_ensure_consume() {
+    _cleanup_set_free_ Set* m = NULL;
+    char* s, * t;
+
+    assert_se(s = strdup("a"));
+    assert_se(set_ensure_consume(&m, &string_hash_ops_free, s) == 1);
+
+    assert_se(t = strdup("a"));
+    assert_se(set_ensure_consume(&m, &string_hash_ops_free, t) == 0);
+
+    assert_se(t = strdup("a"));
+    assert_se(set_ensure_consume(&m, &string_hash_ops_free, t) == 0);
+
+    assert_se(t = strdup("b"));
+    assert_se(set_ensure_consume(&m, &string_hash_ops_free, t) == 1);
+
+    assert_se(t = strdup("b"));
+    assert_se(set_ensure_consume(&m, &string_hash_ops_free, t) == 0);
+
+    assert_se(set_size(m) == 2);
+}
+
 void test_hashmap_remove1() {
     _cleanup_hashmap_free_ Hashmap* m = NULL;
     char* r;
@@ -281,7 +305,7 @@ void test_hashmap_remove1() {
 
 int main(int argc, char** argv) {
     //test_hashmap_remove1();
-
+    //test_set_ensure_consume();
     test_vtable();
 
     return 0;
