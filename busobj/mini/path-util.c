@@ -31,6 +31,8 @@
 
 #ifdef WIN32
 #define NAME_MAX         255	/* # chars in a file name */
+char* stpcpy(char* dst, const char* src);
+char* strchrnul(const char* s, int c);
 #endif
 
 static const char* skip_slash_or_dot(const char* p) {

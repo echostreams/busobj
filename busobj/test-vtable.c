@@ -161,6 +161,7 @@ static int tree_one(sd_bus* bus, const char* service) {
         int q;
 
         p = set_steal_first(paths);
+        printf("*** p = %s\n", p);
         if (!p)
             break;
 
@@ -175,6 +176,7 @@ static int tree_one(sd_bus* bus, const char* service) {
         //q = set_ensure_consume(q < 0 ? &failed : &done, & string_hash_ops_free, TAKE_PTR(p));
         q = set_ensure_consume(q < 0 ? &failed : &done, & string_hash_ops_free, /*TAKE_PTR*/(p));
         p = NULL;
+        printf("**** %d\n", q);
         assert(q != 0);
         if (q < 0)
             return log_oom();

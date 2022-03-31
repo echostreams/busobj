@@ -202,7 +202,11 @@ struct HashmapBase {
         struct direct_storage direct;     /* if !has_indirect */
     };
 #pragma pack(pop)
+#ifdef WIN32
+    enum HashmapType type;          /* HASHMAP_TYPE_* */
+#else
     enum HashmapType type :2;     /* HASHMAP_TYPE_* */
+#endif
     bool has_indirect : 1;         /* whether indirect storage is used */
     unsigned n_direct_entries : 3; /* Number of entries in direct storage.
                                   * Only valid if !has_indirect. */

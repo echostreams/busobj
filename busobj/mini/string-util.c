@@ -23,6 +23,8 @@
 #if defined(_MSC_VER)
 #include <BaseTsd.h>
 typedef SSIZE_T ssize_t;
+char* stpcpy(char* /*restrict*/ dest, const char* /*restrict*/ src);
+char* strndup(const char* s, size_t n);
 #endif
 
 

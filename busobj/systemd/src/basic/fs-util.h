@@ -20,6 +20,7 @@ typedef int mode_t;
 typedef int uid_t;
 typedef int gid_t;
 
+int rmdir(const char* pathname);
 
 #define AT_FDCWD		-100    /* Special value used to indicate
                                    openat should use the current

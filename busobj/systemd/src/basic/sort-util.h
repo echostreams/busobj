@@ -13,6 +13,8 @@ typedef int (*comparison_userdata_fn_t)(const void *, const void *, void *);
 
 #ifdef WIN32
 typedef int (*comparison_fn_t)(const void*, const void*);
+
+#include <search.h>
 #endif
 
 void *xbsearch_r(const void *key, const void *base, size_t nmemb, size_t size,

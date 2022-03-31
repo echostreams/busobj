@@ -7,6 +7,11 @@
 #include "string-util.h"
 #include "xml.h"
 
+#ifdef WIN32
+char* strchrnul(const char* s, int c);
+char* strndup(const char* s, size_t n);
+#endif
+
 enum {
         STATE_NULL,
         STATE_TEXT,

@@ -22,6 +22,13 @@
 #define ALPHANUMERICAL    LETTERS DIGITS
 #define HEXDIGITS         DIGITS "abcdefABCDEF"
 
+#ifdef WIN32
+char* stpcpy(char* /*restrict*/ dest, const char* /*restrict*/ src);
+char* strndup(const char* s, size_t n);
+int asprintf(char** strp, const char* fmt, ...);
+int vasprintf(char** strp, const char* fmt, va_list ap);
+#endif
+
 static inline char* strstr_ptr(const char *haystack, const char *needle) {
         if (!haystack || !needle)
                 return NULL;

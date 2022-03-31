@@ -9,6 +9,8 @@
 #if defined(_WIN32) || defined(_WIN64)
 
 #include <math.h>
+#include <stdlib.h>
+#include <malloc.h>
 
  // strndup() is not available on Windows
 char* strndup(const char* s1, size_t n)
