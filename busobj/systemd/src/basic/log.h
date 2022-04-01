@@ -280,12 +280,12 @@ inline int __log_full_errno(int level, int error, const char* format, ...)
 int log_emergency_level(void);
 
 /* Normal logging */
-#define log_debug(...)     log_full(LOG_DEBUG,   __VA_ARGS__)
-#define log_info(...)      log_full(LOG_INFO,    __VA_ARGS__)
-#define log_notice(...)    log_full(LOG_NOTICE,  __VA_ARGS__)
-#define log_warning(...)   log_full(LOG_WARNING, __VA_ARGS__)
-#define log_error(...)     log_full(LOG_ERR,     __VA_ARGS__)
-#define log_emergency(...) log_full(log_emergency_level(), __VA_ARGS__)
+#define log_debug(fmt, ...)     log_full(LOG_DEBUG, fmt, __VA_ARGS__)
+#define log_info(fmt, ...)      log_full(LOG_INFO, fmt, __VA_ARGS__)
+#define log_notice(fmt, ...)    log_full(LOG_NOTICE, fmt, __VA_ARGS__)
+#define log_warning(fmt, ...)   log_full(LOG_WARNING, fmt, __VA_ARGS__)
+#define log_error(fmt, ...)     log_full(LOG_ERR, fmt, __VA_ARGS__)
+#define log_emergency(fmt, ...) log_full(log_emergency_level(), fmt, __VA_ARGS__)
 
 /* Logging triggered by an errno-like error */
 

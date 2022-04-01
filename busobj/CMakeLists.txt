@@ -181,8 +181,8 @@ add_library(libsystemd-mini
 	"systemd/src/libsystemd/sd-bus/bus-match.c"
 	"systemd/src/libsystemd/sd-bus/bus-gvariant.c"
 	"systemd/src/libsystemd/sd-bus/bus-convenience.c"
-	#"systemd/src/libsystemd/sd-bus/bus-control.c"
-	#"systemd/src/libsystemd/sd-bus/bus-message.c"
+	"systemd/src/libsystemd/sd-bus/bus-control.c"
+	"systemd/src/libsystemd/sd-bus/bus-message.c"
 	#"systemd/src/libsystemd/sd-bus/sd-bus.c"
 	"systemd/src/libsystemd/sd-bus/bus-dump.c"
 

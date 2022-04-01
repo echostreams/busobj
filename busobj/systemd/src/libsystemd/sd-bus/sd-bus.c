@@ -2,7 +2,9 @@
 
 #include <endian.h>
 #include <netdb.h>
+#if defined(__linux__)
 #include <pthread.h>
+#endif
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/mman.h>
@@ -142,7 +144,9 @@ void bus_close_inotify_fd(sd_bus *b) {
         b->inotify_event_source = sd_event_source_disable_unref(b->inotify_event_source);
 
         b->inotify_fd = safe_close(b->inotify_fd);
-        b->inotify_watches = mfree(b->inotify_watches);
+        //b->inotify_watches = mfree(b->inotify_watches);
+        free(b->inotify_watches);
+        b->inotify_watches = NULL;
         b->n_inotify_watches = 0;
 }
 
@@ -152,12 +156,16 @@ static void bus_reset_queues(sd_bus *b) {
         while (b->rqueue_size > 0)
                 bus_message_unref_queued(b->rqueue[--b->rqueue_size], b);
 
-        b->rqueue = mfree(b->rqueue);
+        //b->rqueue = mfree(b->rqueue);
+        free(b->rqueue);
+        b->rqueue = NULL;
 
         while (b->wqueue_size > 0)
                 bus_message_unref_queued(b->wqueue[--b->wqueue_size], b);
 
-        b->wqueue = mfree(b->wqueue);
+        //b->wqueue = mfree(b->wqueue);
+        free(b->wqueue);
+        b->wqueue = NULL;
 }
 
 static sd_bus* bus_free(sd_bus *b) {
@@ -221,9 +229,13 @@ static sd_bus* bus_free(sd_bus *b) {
 
         bus_flush_memfd(b);
 
+#if defined(__linux__)
         assert_se(pthread_mutex_destroy(&b->memfd_cache_mutex) == 0);
+#endif;
 
-        return mfree(b);
+        //return mfree(b);
+        free(b);
+        return NULL;
 }
 
 DEFINE_TRIVIAL_CLEANUP_FUNC(sd_bus*, bus_free);
@@ -254,10 +266,12 @@ _public_ int sd_bus_new(sd_bus **ret) {
         /* We guarantee that wqueue always has space for at least one entry */
         if (!GREEDY_REALLOC(b->wqueue, 1))
                 return -ENOMEM;
-
+#if defined(__linux__)
         assert_se(pthread_mutex_init(&b->memfd_cache_mutex, NULL) == 0);
-
-        *ret = TAKE_PTR(b);
+#endif
+        //*ret = TAKE_PTR(b);
+        *ret = b;
+        b = NULL;
         return 0;
 }
 

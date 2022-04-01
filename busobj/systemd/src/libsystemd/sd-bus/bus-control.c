@@ -206,7 +206,7 @@ _public_ int sd_bus_request_name_async(
                         "/org/freedesktop/DBus",
                         "org.freedesktop.DBus",
                         "RequestName",
-                        callback ?: default_request_name_handler,
+                        callback ? callback : default_request_name_handler,
                         userdata,
                         "su",
                         name,
@@ -353,7 +353,7 @@ _public_ int sd_bus_release_name_async(
                         "/org/freedesktop/DBus",
                         "org.freedesktop.DBus",
                         "ReleaseName",
-                        callback ?: default_release_name_handler,
+                        callback ? callback : default_release_name_handler,
                         userdata,
                         "s",
                         name);
@@ -412,12 +412,16 @@ _public_ int sd_bus_list_names(sd_bus *bus, char ***acquired, char ***activatabl
                 if (r < 0)
                         return r;
 
-                *activatable = TAKE_PTR(y);
+                //*activatable = TAKE_PTR(y);
+                *activatable = y;
+                y = NULL;
         }
 
-        if (acquired)
-                *acquired = TAKE_PTR(x);
-
+        if (acquired) {
+            //*acquired = TAKE_PTR(x);
+            *acquired = x;
+            x = NULL;
+        }
         return 0;
 }
 
@@ -524,7 +528,7 @@ _public_ int sd_bus_get_name_creds(
                                         &error,
                                         &reply,
                                         "s",
-                                        unique ?: name);
+                                        unique ? unique : name);
 
                         if (r < 0) {
 
@@ -635,7 +639,7 @@ _public_ int sd_bus_get_name_creds(
                                                 NULL,
                                                 &reply,
                                                 "s",
-                                                unique ?: name);
+                                                unique ? unique : name);
                                 if (r < 0)
                                         return r;
 
@@ -664,7 +668,7 @@ _public_ int sd_bus_get_name_creds(
                                                 NULL,
                                                 &reply,
                                                 "s",
-                                                unique ?: name);
+                                                unique ? unique : name);
                                 if (r < 0)
                                         return r;
 
@@ -691,7 +695,7 @@ _public_ int sd_bus_get_name_creds(
                                                 &error,
                                                 &reply,
                                                 "s",
-                                                unique ?: name);
+                                                unique ? unique : name);
                                 if (r < 0) {
                                         if (!sd_bus_error_has_name(&error, "org.freedesktop.DBus.Error.SELinuxSecurityContextUnknown"))
                                                 return r;
@@ -716,8 +720,11 @@ _public_ int sd_bus_get_name_creds(
                         return r;
         }
 
-        if (creds)
-                *creds = TAKE_PTR(c);
+        if (creds) {
+            //*creds = TAKE_PTR(c);
+            *creds = c;
+            c = NULL;
+        }
 
         return 0;
 }
@@ -790,14 +797,22 @@ _public_ int sd_bus_get_owner_creds(sd_bus *bus, uint64_t mask, sd_bus_creds **r
         if (r < 0 && r != -ESRCH) /* If the process vanished, then don't complain, just return what we got */
                 return r;
 
-        *ret = TAKE_PTR(c);
+        //*ret = TAKE_PTR(c);
+        *ret = c;
+        c = NULL;
 
         return 0;
 }
 
+/*
 #define append_eavesdrop(bus, m)                                        \
         ((bus)->is_monitor                                              \
          ? (isempty(m) ? "eavesdrop='true'" : strjoina((m), ",eavesdrop='true'")) \
+         : (m))
+*/
+#define append_eavesdrop(bus, m)                                        \
+        ((bus)->is_monitor                                              \
+         ? (isempty(m) ? "eavesdrop='true'" : strjoin((m), ",eavesdrop='true'")) \
          : (m))
 
 int bus_add_match_internal(

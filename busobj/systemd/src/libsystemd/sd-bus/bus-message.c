@@ -50,7 +50,8 @@ static void message_free_part(sd_bus_message *m, struct bus_body_part *part) {
                         explicit_bzero_safe(part->data, part->size);
 
                 close_and_munmap(part->memfd, part->mmap_begin, part->mapped);
-        } else if (part->munmap_this)
+        } 
+        else if (part->munmap_this)
                 /* We don't erase sensitive data here, since the data is memory mapped from someone else, and
                  * we just don't know if it's OK to write to it */
                 munmap(part->mmap_begin, part->mapped);
@@ -116,7 +117,10 @@ static void message_reset_containers(sd_bus_message *m) {
         while (m->n_containers > 0)
                 message_free_last_container(m);
 
-        m->containers = mfree(m->containers);
+        //m->containers = mfree(m->containers);
+        free(m->containers);
+        m->containers = NULL;
+
         m->root_container.index = 0;
 }
 
@@ -144,7 +148,9 @@ static sd_bus_message* message_free(sd_bus_message *m) {
         message_free_last_container(m);
 
         bus_creds_done(&m->creds);
-        return mfree(m);
+        //return mfree(m);
+        free(m);
+        return NULL;
 }
 
 static void *message_extend_fields(sd_bus_message *m, size_t align, size_t sz, bool add_offset) {
@@ -445,13 +451,15 @@ int bus_message_from_header(
                 return -EBADMSG;
 
         h = header;
-        if (!IN_SET(h->version, 1, 2))
+        //if (!IN_SET(h->version, 1, 2))
+        if (!(h->version == 1 || h->version == 2))
                 return -EBADMSG;
 
         if (h->type == _SD_BUS_MESSAGE_TYPE_INVALID)
                 return -EBADMSG;
 
-        if (!IN_SET(h->endian, BUS_LITTLE_ENDIAN, BUS_BIG_ENDIAN))
+        //if (!IN_SET(h->endian, BUS_LITTLE_ENDIAN, BUS_BIG_ENDIAN))
+        if (!(h->endian == BUS_LITTLE_ENDIAN || h->endian == BUS_BIG_ENDIAN))
                 return -EBADMSG;
 
         /* Note that we are happy with unknown flags in the flags header! */
@@ -523,7 +531,9 @@ int bus_message_from_header(
         m->n_ref = 1;
         m->bus = sd_bus_ref(bus);
 
-        *ret = TAKE_PTR(m);
+        //*ret = TAKE_PTR(m);
+        *ret = m;
+        m = NULL;
 
         return 0;
 }
@@ -573,7 +583,9 @@ int bus_message_from_malloc(
         m->free_header = true;
         m->free_fds = true;
 
-        *ret = TAKE_PTR(m);
+        //*ret = TAKE_PTR(m);
+        *ret = m;
+        m = NULL;
         return 0;
 }
 
@@ -599,7 +611,9 @@ _public_ int sd_bus_message_new(
         t->header->endian = BUS_NATIVE_ENDIAN;
         t->header->type = type;
         t->header->version = bus->message_version;
-        t->allow_fds = bus->can_fds || !IN_SET(bus->state, BUS_HELLO, BUS_RUNNING);
+        t->allow_fds = bus->can_fds || 
+            //!IN_SET(bus->state, BUS_HELLO, BUS_RUNNING);
+            !(bus->state == BUS_HELLO || bus->state == BUS_RUNNING);
         t->root_container.need_offsets = BUS_MESSAGE_IS_GVARIANT(t);
 
         if (bus->allow_interactive_authorization)
@@ -645,7 +659,9 @@ _public_ int sd_bus_message_new_signal(
         if (r < 0)
                 return r;
 
-        *m = TAKE_PTR(t);
+        //*m = TAKE_PTR(t);
+        *m = t;
+        t = NULL;
         return 0;
 }
 
@@ -694,7 +710,9 @@ _public_ int sd_bus_message_new_method_call(
                         return r;
         }
 
-        *m = TAKE_PTR(t);
+        //*m = TAKE_PTR(t);
+        *m = t;
+        t = NULL;
         return 0;
 }
 
@@ -744,7 +762,9 @@ static int message_new_reply(
          * to both the message call and the reply. */
         t->sensitive = call->sensitive;
 
-        *m = TAKE_PTR(t);
+        //*m = TAKE_PTR(t);
+        *m = t;
+        t = NULL;
         return 0;
 }
 
@@ -782,7 +802,9 @@ _public_ int sd_bus_message_new_method_error(
 
         t->error._need_free = -1;
 
-        *m = TAKE_PTR(t);
+        //*m = TAKE_PTR(t);
+        *m = t;
+        t = NULL;
         return 0;
 }
 
@@ -903,7 +925,9 @@ int bus_message_new_synthetic_error(
 
         bus_message_set_sender_driver(bus, t);
 
-        *m = TAKE_PTR(t);
+        //*m = TAKE_PTR(t);
+        *m = t;
+        t = NULL;
         return 0;
 }
 
@@ -1414,6 +1438,7 @@ static void *message_extend_body(
 }
 
 static int message_push_fd(sd_bus_message *m, int fd) {
+#if defined (__linux__)
         int *f, copy;
 
         assert(m);
@@ -1440,6 +1465,9 @@ static int message_push_fd(sd_bus_message *m, int fd) {
         m->free_fds = true;
 
         return copy;
+#else
+    return -1;
+#endif
 }
 
 int message_append_basic(sd_bus_message *m, char type, const void *p, const void **stored) {
@@ -1598,7 +1626,9 @@ int message_append_basic(sd_bus_message *m, char type, const void *p, const void
                 if (!a)
                         return -ENOMEM;
 
-                if (IN_SET(type, SD_BUS_TYPE_STRING, SD_BUS_TYPE_OBJECT_PATH)) {
+                //if (IN_SET(type, SD_BUS_TYPE_STRING, SD_BUS_TYPE_OBJECT_PATH)) 
+                if ((type == SD_BUS_TYPE_STRING || type == SD_BUS_TYPE_OBJECT_PATH))
+                {
                         *(uint32_t*) a = sz - 5;
                         memcpy((uint8_t*) a + 4, p, sz - 4);
 
@@ -2064,13 +2094,14 @@ _public_ int sd_bus_message_open_container(
         /* OK, let's fill it in */
         m->containers[m->n_containers++] = (struct bus_container) {
                 .enclosing = type,
-                .signature = TAKE_PTR(signature),
+                //.signature = TAKE_PTR(signature),
+                .signature = signature,
                 .array_size = array_size,
                 .before = before,
                 .begin = begin,
                 .need_offsets = need_offsets,
         };
-
+        signature = NULL;
         return 0;
 }
 
