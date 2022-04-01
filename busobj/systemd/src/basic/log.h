@@ -288,18 +288,23 @@ int log_emergency_level(void);
 #define log_emergency(...) log_full(log_emergency_level(), __VA_ARGS__)
 
 /* Logging triggered by an errno-like error */
+
+#if defined (__linux__)
 #define log_debug_errno(error, ...)     log_full_errno(LOG_DEBUG,   error, __VA_ARGS__)
 #define log_info_errno(error, ...)      log_full_errno(LOG_INFO,    error, __VA_ARGS__)
-#if defined (__linux__)
 #define log_notice_errno(error, ...)    log_full_errno(LOG_NOTICE,  error, __VA_ARGS__)
 #define log_warning_errno(error, ...)   log_full_errno(LOG_WARNING, error, __VA_ARGS__)
 #define log_error_errno(error, ...)     log_full_errno(LOG_ERR,   error, __VA_ARGS__)
-#else
-#define log_notice_errno(error, ...)    __log_full_errno(LOG_NOTICE,  error, __VA_ARGS__)
-#define log_warning_errno(error, ...)   __log_full_errno(LOG_WARNING, error, __VA_ARGS__)
-#define log_error_errno(error, ...)     __log_full_errno(LOG_ERR,   error, __VA_ARGS__)
-#endif
 #define log_emergency_errno(error, ...) log_full_errno(log_emergency_level(), error, __VA_ARGS__)
+#else
+#define log_debug_errno(error, fmt, ...)     __log_full_errno(LOG_DEBUG,   error, fmt, __VA_ARGS__)
+#define log_info_errno(error, fmt, ...)      __log_full_errno(LOG_INFO,    error, fmt, __VA_ARGS__)
+#define log_notice_errno(error, fmt, ...)    __log_full_errno(LOG_NOTICE,  error, fmt, __VA_ARGS__)
+#define log_warning_errno(error, fmt, ...)   __log_full_errno(LOG_WARNING, error, fmt, __VA_ARGS__)
+#define log_error_errno(error, fmt, ...)     __log_full_errno(LOG_ERR,   error, fmt, __VA_ARGS__)
+#define log_emergency_errno(error, fmt, ...) __log_full_errno(log_emergency_level(), error, fmt, __VA_ARGS__)
+#endif
+
 
 /* This logs at the specified level the first time it is called, and then
  * logs at debug. If the specified level is debug, this logs only the first

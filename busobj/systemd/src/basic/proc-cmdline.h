@@ -31,9 +31,7 @@ bool proc_cmdline_key_streq(const char *x, const char *y);
 /* A little helper call, to be used in proc_cmdline_parse_t callbacks */
 static inline bool proc_cmdline_value_missing(const char *key, const char *value) {
         if (!value) {
-                //log_warning
-                printf
-                ("Missing argument for %s= kernel command line switch, ignoring.", key);
+                log_warning("Missing argument for %s= kernel command line switch, ignoring.", key);
                 return true;
         }
 

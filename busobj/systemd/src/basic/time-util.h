@@ -8,6 +8,10 @@
 #include <stdio.h>
 #include <time.h>
 
+#ifdef WIN32
+#include "win_clock_gettime.h"
+#endif
+
 typedef uint64_t usec_t;
 typedef uint64_t nsec_t;
 

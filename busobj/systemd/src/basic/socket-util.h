@@ -302,7 +302,7 @@ int socket_ioctl_fd(void);
 int sockaddr_un_set_path(struct sockaddr_un *ret, const char *path);
 
 static inline int setsockopt_int(int fd, int level, int optname, int value) {
-        if (setsockopt(fd, level, optname, &value, sizeof(value)) < 0)
+        if (setsockopt(fd, level, optname, (const char*)&value, sizeof(value)) < 0)
                 return -errno;
 
         return 0;
@@ -312,7 +312,7 @@ static inline int getsockopt_int(int fd, int level, int optname, int *ret) {
         int v;
         socklen_t sl = sizeof(v);
 
-        if (getsockopt(fd, level, optname, &v, &sl) < 0)
+        if (getsockopt(fd, level, optname, (char*)&v, &sl) < 0)
                 return negative_errno();
         if (sl != sizeof(v))
                 return -EIO;

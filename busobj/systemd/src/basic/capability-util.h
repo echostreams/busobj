@@ -3,7 +3,9 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#if defined(__linux__)
 #include <sys/capability.h>
+#endif
 #include <sys/types.h>
 
 #include "macro.h"
@@ -14,6 +16,8 @@
 
 unsigned cap_last_cap(void);
 int have_effective_cap(int value);
+
+#if defined(__linux__)
 int capability_gain_cap_setpcap(cap_t *return_caps);
 int capability_bounding_set_drop(uint64_t keep, bool right_now);
 int capability_bounding_set_drop_usermode(uint64_t keep);
@@ -76,3 +80,5 @@ static inline bool capability_quintet_is_set(const CapabilityQuintet *q) {
 bool capability_quintet_mangle(CapabilityQuintet *q);
 
 int capability_quintet_enforce(const CapabilityQuintet *q);
+
+#endif

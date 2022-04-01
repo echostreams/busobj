@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 
+#if defined(__linux__)
 #include <sys/time.h>
+#else
+#include <time.h>
+#endif
 
 #include "alloc-util.h"
 #include "bus-dump.h"
@@ -57,7 +61,7 @@ _public_ int sd_bus_message_dump(sd_bus_message *m, FILE *f, uint64_t flags) {
 
         if (flags & SD_BUS_MESSAGE_DUMP_WITH_HEADER) {
                 usec_t ts = m->realtime;
-
+                const char* msg_type = bus_message_type_to_string(m->header->type);
                 if (ts == 0)
                         ts = now(CLOCK_REALTIME);
 
@@ -70,7 +74,7 @@ _public_ int sd_bus_message_dump(sd_bus_message *m, FILE *f, uint64_t flags) {
                         ansi_normal(),
 
                         ansi_highlight(),
-                        bus_message_type_to_string(m->header->type) ?: "(unknown)",
+                        msg_type ? msg_type : "(unknown)",
                         ansi_normal(),
 
                         m->header->endian,
@@ -87,8 +91,13 @@ _public_ int sd_bus_message_dump(sd_bus_message *m, FILE *f, uint64_t flags) {
                 if (m->reply_cookie != 0)
                         fprintf(f, "  ReplyCookie=%" PRIu64, m->reply_cookie);
 
+#ifdef WIN32
+                char buf[FORMAT_TIMESTAMP_MAX];
+                char* style = format_timestamp_style(buf, FORMAT_TIMESTAMP_MAX, ts, TIMESTAMP_US_UTC);
+                fprintf(f, "  Timestamp=\"%s\"\n", strna(style));
+#else
                 fprintf(f, "  Timestamp=\"%s\"\n", strna(FORMAT_TIMESTAMP_STYLE(ts, TIMESTAMP_US_UTC)));
-
+#endif
                 if (m->sender)
                         fprintf(f, "  Sender=%s%s%s", ansi_highlight(), m->sender, ansi_normal());
                 if (m->destination)
@@ -284,6 +293,8 @@ static void dump_capabilities(
                 bool terse,
                 int (*has)(sd_bus_creds *c, int capability)) {
 
+#if ENABLE_DUMP_CAPABILITIES
+
         unsigned long i, last_cap;
         unsigned n = 0;
         int r;
@@ -325,9 +336,13 @@ static void dump_capabilities(
 
         if (!terse)
                 fputs(ansi_normal(), f);
+#endif
+
 }
 
 int bus_creds_dump(sd_bus_creds *c, FILE *f, bool terse) {
+
+#if ENABLE_BUS_CREDS_DUMP
         uid_t owner, audit_loginuid;
         uint32_t audit_sessionid;
         char **cmdline = NULL, **well_known = NULL;
@@ -350,7 +365,11 @@ int bus_creds_dump(sd_bus_creds *c, FILE *f, bool terse) {
                 color = ansi_highlight();
 
                 off = ansi_normal();
+#ifdef WIN32
+                suffix = strjoin(off, "\n");
+#else
                 suffix = strjoina(off, "\n");
+#endif
         }
 
         if (c->mask & SD_BUS_CREDS_PID)
@@ -499,6 +518,7 @@ int bus_creds_dump(sd_bus_creds *c, FILE *f, bool terse) {
         dump_capabilities(c, f, "PermittedCapabilities", terse, sd_bus_creds_has_permitted_cap);
         dump_capabilities(c, f, "InheritableCapabilities", terse, sd_bus_creds_has_inheritable_cap);
         dump_capabilities(c, f, "BoundingCapabilities", terse, sd_bus_creds_has_bounding_cap);
+#endif
 
         return 0;
 }
@@ -606,7 +626,7 @@ int bus_message_pcap_frame(sd_bus_message *m, size_t snaplen, FILE *f) {
         assert(snaplen > 0);
         assert((size_t) (uint32_t) snaplen == snaplen);
 
-        ts = m->realtime ?: now(CLOCK_REALTIME);
+        ts = m->realtime ? m->realtime : now(CLOCK_REALTIME);
         msglen = BUS_MESSAGE_SIZE(m);
         caplen = MIN(msglen, snaplen);
         pad = ALIGN4(caplen) - caplen;

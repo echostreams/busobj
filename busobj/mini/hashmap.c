@@ -780,6 +780,20 @@ static void shared_hash_key_initialize(void) {
     random_bytes(shared_hash_key, sizeof(shared_hash_key));
 }
 
+#ifdef WIN32
+
+// Initialization callback function for shared_hash_key 
+BOOL CALLBACK InitSharedHashKeyFunction(
+    PINIT_ONCE InitOnce,        // Pointer to one-time initialization structure        
+    PVOID Parameter,            // Optional parameter passed by InitOnceExecuteOnce            
+    PVOID* lpContext)           // Receives pointer to object           
+{
+    shared_hash_key_initialize();
+    return TRUE;
+}
+
+#endif
+
 static struct HashmapBase* hashmap_base_new(const struct hash_ops* hash_ops, enum HashmapType type  HASHMAP_DEBUG_PARAMS) {
     HashmapBase* h;
     const struct hashmap_type_info* hi = &hashmap_type_info[type];
@@ -807,10 +821,31 @@ static struct HashmapBase* hashmap_base_new(const struct hash_ops* hash_ops, enu
 
     reset_direct_storage(h);
 
-    //static pthread_once_t once = PTHREAD_ONCE_INIT;
-    //assert_se(pthread_once(&once, shared_hash_key_initialize) == 0);
+#ifdef WIN32
+    static INIT_ONCE once = INIT_ONCE_STATIC_INIT;
+    BOOL bStatus;
+    
+    // Execute the initialization callback function 
+    bStatus = InitOnceExecuteOnce(&once,    // One-time initialization structure
+        InitSharedHashKeyFunction,          // Pointer to initialization callback function
+        NULL,                               // Optional parameter to callback function (not used)
+        NULL);                              // Receives pointer to object stored in once (not used)
+    
+    // InitOnceExecuteOnce function succeeded
+    if (bStatus)
+    {
+        // Initialized
+    }
+    else {
 
-    shared_hash_key_initialize();
+    }
+#else
+    static pthread_once_t once = PTHREAD_ONCE_INIT;
+    assert_se(pthread_once(&once, shared_hash_key_initialize) == 0);
+#endif
+
+    
+    
 
 #if ENABLE_DEBUG_HASHMAP
     h->debug.func = func;

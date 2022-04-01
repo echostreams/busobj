@@ -17,7 +17,7 @@
 #ifdef WIN32
 
 typedef int mode_t;
-typedef int uid_t;
+typedef unsigned int uid_t;
 typedef int gid_t;
 
 int rmdir(const char* pathname);

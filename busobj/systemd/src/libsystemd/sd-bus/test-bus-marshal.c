@@ -25,6 +25,12 @@
 #include "tests.h"
 #include "util.h"
 
+#include "bus-internal.h"
+
+#ifdef WIN32
+#include <locale.h>
+#endif
+
 static void test_bus_path_encode_unique(void) {
         _cleanup_free_ char *a = NULL, *b = NULL, *c = NULL, *d = NULL, *e = NULL;
 
@@ -122,6 +128,13 @@ int main(int argc, char *argv[]) {
         double dbl;
         uint64_t u64;
 
+#ifdef WIN32
+        // Set the locale of the main thread to US English.
+        printf("The thread locale is now set to %s.\n",
+            setlocale(LC_ALL, ".UTF8"));
+
+#endif
+/*
         test_setup_logging(LOG_INFO);
 
         r = sd_bus_default_user(&bus);
@@ -129,6 +142,12 @@ int main(int argc, char *argv[]) {
                 r = sd_bus_default_system(&bus);
         if (r < 0)
                 return log_tests_skipped("Failed to connect to bus");
+*/
+        // manually setup bus for testing
+        assert(sd_bus_new(&bus) >= 0);
+        
+        bus->state = BUS_RUNNING;
+        /////////////////////
 
         r = sd_bus_message_new_method_call(bus, &m, "foobar.waldo", "/", "foobar.waldo", "Piep");
         assert_se(r >= 0);

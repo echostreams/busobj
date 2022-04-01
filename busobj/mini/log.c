@@ -42,6 +42,12 @@
 #include "time-util.h"
 #include "utf8.h"
 
+
+ColorMode get_color_mode(void)
+{
+    return COLOR_OFF;
+}
+
 #define SNDBUF_SIZE (8*1024*1024)
 
 #ifdef WIN32
@@ -77,6 +83,7 @@ int log_dispatch_internal(
     char* buffer) {
 
     printf("%s\n", buffer);
+    return 0;
    
 }
 

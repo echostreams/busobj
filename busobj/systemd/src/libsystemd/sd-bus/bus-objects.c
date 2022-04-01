@@ -888,7 +888,7 @@ static int property_get_all_callbacks_run(
         return 1;
 }
 
-static int bus_node_exists(
+/*static*/ int bus_node_exists(
                 sd_bus *bus,
                 struct node *n,
                 const char *path,

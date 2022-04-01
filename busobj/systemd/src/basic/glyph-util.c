@@ -5,7 +5,12 @@
 #include "locale-util.h"
 #include "strv.h"
 
+bool is_locale_utf8() {
+    return true;
+}
+
 bool emoji_enabled(void) {
+#if 0
         static int cached_emoji_enabled = -1;
 
         if (cached_emoji_enabled < 0) {
@@ -21,6 +26,9 @@ bool emoji_enabled(void) {
         }
 
         return cached_emoji_enabled;
+#else
+    return false;
+#endif
 }
 
 const char *special_glyph(SpecialGlyph code) {

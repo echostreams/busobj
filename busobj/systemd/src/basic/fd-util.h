@@ -9,6 +9,10 @@
 #include "macro.h"
 #include "stdio-util.h"
 
+#ifdef WIN32
+int pclose(FILE* stream);
+#endif
+
 /* maximum length of fdname */
 #define FDNAME_MAX 255
 

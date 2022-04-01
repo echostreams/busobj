@@ -4382,7 +4382,7 @@ _public_ int sd_bus_message_peek_type(sd_bus_message* m, char* type, const char*
     }
 
     if //(IN_SET(c->signature[c->index], SD_BUS_TYPE_STRUCT_BEGIN, SD_BUS_TYPE_DICT_ENTRY_BEGIN)) 
-        ((c->signature[c->index] == SD_BUS_TYPE_STRUCT_BEGIN, c->signature[c->index] == SD_BUS_TYPE_DICT_ENTRY_BEGIN))
+        ((c->signature[c->index] == SD_BUS_TYPE_STRUCT_BEGIN || c->signature[c->index] == SD_BUS_TYPE_DICT_ENTRY_BEGIN))
     {
 
         if (contents) {
@@ -6117,9 +6117,7 @@ _public_ int sd_bus_message_get_priority(sd_bus_message* m, int64_t* priority) {
     assert_return(priority, -EINVAL);
 
     if (!warned) {
-        //log_debug
-        printf
-        ("sd_bus_message_get_priority() is deprecated and always returns 0.");
+        log_debug("sd_bus_message_get_priority() is deprecated and always returns 0.");
         warned = true;
     }
 
@@ -6134,9 +6132,7 @@ _public_ int sd_bus_message_set_priority(sd_bus_message* m, int64_t priority) {
     assert_return(!m->sealed, -EPERM);
 
     if (!warned) {
-        //log_debug
-        printf
-        ("sd_bus_message_set_priority() is deprecated and does nothing.");
+        log_debug("sd_bus_message_set_priority() is deprecated and does nothing.");
         warned = true;
     }
 

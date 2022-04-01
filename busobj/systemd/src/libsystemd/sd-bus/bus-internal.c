@@ -95,9 +95,7 @@ bool interface_name_is_valid(const char *p) {
                         if (!good) {
                                 if (DEBUG_LOGGING) {
                                         _cleanup_free_ char *iface = cescape(p);
-                                        //log_debug
-                                        printf
-                                        ("The interface %s is invalid as it contains special character", strnull(iface));
+                                        log_debug("The interface %s is invalid as it contains special character", strnull(iface));
                                 }
                                 return false;
                         }
@@ -329,9 +327,7 @@ int bus_maybe_reply_error(sd_bus_message *m, int r, sd_bus_error *error) {
         } else
                 return r;
 
-        //log_debug
-        printf
-        ("Failed to process message type=%s sender=%s destination=%s path=%s interface=%s member=%s cookie=%" PRIu64 " reply_cookie=%" PRIu64 " signature=%s error-name=%s error-message=%s: %s",
+        log_debug("Failed to process message type=%s sender=%s destination=%s path=%s interface=%s member=%s cookie=%" PRIu64 " reply_cookie=%" PRIu64 " signature=%s error-name=%s error-message=%s: %s",
                   bus_message_type_to_string(m->header->type),
                   strna(sd_bus_message_get_sender(m)),
                   strna(sd_bus_message_get_destination(m)),

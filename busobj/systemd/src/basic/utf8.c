@@ -56,7 +56,8 @@ static bool unichar_is_control(char32_t ch) {
           '\t' is in C0 range, but more or less harmless and commonly used.
         */
 
-        return (ch < ' ' && !IN_SET(ch, '\t', '\n')) ||
+        //return (ch < ' ' && !IN_SET(ch, '\t', '\n')) ||
+    return (ch < ' ' && !(ch == '\t' || ch == '\n')) ||
                 (0x7F <= ch && ch <= 0x9F);
 }
 
@@ -339,7 +340,9 @@ int utf8_to_ascii(const char *str, char replacement_char, char **ret) {
         }
         *q = '\0';
 
-        *ret = TAKE_PTR(ans);
+        //*ret = TAKE_PTR(ans);
+        *ret = ans;
+        ans = NULL;
         return 0;
 }
 
@@ -442,7 +445,7 @@ char *utf16_to_utf8(const char16_t *s, size_t length /* bytes! */) {
 size_t utf16_encode_unichar(char16_t *out, char32_t c) {
 
         /* Note that this encodes as little-endian. */
-
+#if defined(__linux__)
         switch (c) {
 
         case 0 ... 0xd7ffU:
@@ -459,6 +462,24 @@ size_t utf16_encode_unichar(char16_t *out, char32_t c) {
         default: /* A surrogate (invalid) */
                 return 0;
         }
+#else
+    if ((c >= 0 && c <= 0xd7ffU) ||
+        (c >= 0xe000U && c <= 0xffffU)) {
+        out[0] = htole16(c);
+        return 1;
+    }
+    else if (c >= 0x10000U && c <= 0x10ffffU) {
+        c -= 0x10000U;
+        out[0] = htole16((c >> 10) + 0xd800U);
+        out[1] = htole16((c & 0x3ffU) + 0xdc00U);
+        return 2;
+    }
+    else {
+        /* A surrogate (invalid) */
+        return 0;
+    }
+#endif
+
 }
 
 char16_t *utf8_to_utf16(const char *s, size_t length) {

@@ -27,6 +27,10 @@ char* stpcpy(char* /*restrict*/ dest, const char* /*restrict*/ src);
 char* strndup(const char* s, size_t n);
 int asprintf(char** strp, const char* fmt, ...);
 int vasprintf(char** strp, const char* fmt, va_list ap);
+void* mempcpy(void* dest, const void* src, size_t n);
+void* memrchr(const void* s, int c, size_t n);
+char* strchrnul(const char* s, int c);
+#include <endian.h>
 #endif
 
 static inline char* strstr_ptr(const char *haystack, const char *needle) {

@@ -8,11 +8,13 @@ include_directories(
 	"systemd/src/libsystemd/sd-bus"
 	"systemd/src/basic"
 	"systemd/src/fundamental"
+	"systemd/src/shared"
 )
 
 message(STATUS "--CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
 
 if(WIN32)
+	include_directories("windows")
 	include_directories("windows/posix/include")
 	add_definitions(-D__SIZEOF_INT__=4)
 	add_definitions(-D__SIZEOF_POINTER__=8)
@@ -20,6 +22,7 @@ if(WIN32)
 	IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "AMD64") # for desktop
 		add_definitions(-D__x86_64__)
 	ENDIF()
+	add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 else()
 	add_definitions(-DHAVE_REALLOCARRAY)
 	add_definitions(-DHAVE_NAME_TO_HANDLE_AT)
@@ -48,7 +51,7 @@ add_definitions(-DGPERF_LEN_TYPE=size_t)
 
 #add_definitions(-DENABLE_DEBUG_HASHMAP)
 
-add_library(libvtable
+add_library(libsystemd
 	"systemd/src/fundamental/string-util-fundamental.c"
 	"systemd/src/fundamental/sha256.c"
 
@@ -159,7 +162,7 @@ add_executable (busobj
 	"busobj.c"
 )
 
-target_link_libraries(busobj libvtable)
+target_link_libraries(busobj libsystemd)
 
 if(WIN32)
 
@@ -167,11 +170,7 @@ else()
 	target_link_libraries(busobj pthread cap rt)
 endif()
 
-
-# Add source to this project's executable.
-add_executable (test-vtable 
-	"test-vtable.c"
-
+add_library(libsystemd-mini 
 	"systemd/src/libsystemd/sd-bus/bus-objects.c"
 	"systemd/src/libsystemd/sd-bus/bus-type.c"
 	"systemd/src/libsystemd/sd-bus/bus-internal.c"
@@ -185,6 +184,7 @@ add_executable (test-vtable
 	#"systemd/src/libsystemd/sd-bus/bus-control.c"
 	#"systemd/src/libsystemd/sd-bus/bus-message.c"
 	#"systemd/src/libsystemd/sd-bus/sd-bus.c"
+	"systemd/src/libsystemd/sd-bus/bus-dump.c"
 
 	"mini/bus-message.c"
 	"mini/sd-bus.c"
@@ -196,6 +196,7 @@ add_executable (test-vtable
 	"mini/randombytes.c"
 	"mini/escape.c"
 	"mini/string-util.c"
+	"mini/time-util.c"
 
 	"systemd/src/basic/errno-list.c"
 	"systemd/src/basic/ordered-set.c"
@@ -205,24 +206,41 @@ add_executable (test-vtable
 	"systemd/src/basic/alloc-util.c"
 	"systemd/src/fundamental/string-util-fundamental.c"
 	"systemd/src/shared/xml.c"
+	"systemd/src/basic/glyph-util.c"
+	"systemd/src/basic/bus-label.c"
+	"systemd/src/basic/utf8.c"
+	"systemd/src/basic/gunicode.c"
 	#"systemd/src/shared/tests.c"
 
 	"windows/asprintf.c"
 	"windows/strndup.c"
 	"windows/getuid.cpp"
 	"windows/mmap.c"
+	"windows/win_clock_gettime.c"
 
 	"systemd/src/busctl/busctl-introspect.c"
 )
-target_include_directories(test-vtable PUBLIC "systemd/src/shared")
+
+# Add source to this project's executable.
+add_executable (test-vtable 
+	"test-vtable.c"
+)
 
 add_executable(test-busctl
 			   "systemd/src/busctl/test-busctl-introspect.c"
                "systemd/src/busctl/busctl-introspect.c"
                "systemd/src/busctl/busctl-introspect.h")
 
-target_include_directories(test-busctl PUBLIC "systemd/src/shared")
-
-include_directories("systemd/src/shared")
-
 add_executable(test-hashmap-plain.c "systemd/src/test/test-hashmap-plain.c")
+add_executable(test-bus-marshal "systemd/src/libsystemd/sd-bus/test-bus-marshal.c")
+
+target_link_libraries(test-vtable libsystemd-mini)
+target_link_libraries(test-bus-marshal libsystemd-mini)
+
+if(WIN32)
+	
+else()
+	target_link_libraries(test-vtable pthread rt)
+	target_link_libraries(test-bus-marshal pthread rt)
+endif()
+

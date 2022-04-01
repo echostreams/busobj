@@ -455,31 +455,6 @@ int memfd_set_size(int fd, uint64_t sz) {
 #endif
 }
 
-
-char* utf8_is_valid_n(const char* str, size_t len_bytes) {
-    /* Check if the string is composed of valid utf8 characters. If length len_bytes is given, stop after
-     * len_bytes. Otherwise, stop at NUL. */
-
-    assert(str);
-
-    for (const char* p = str; len_bytes != SIZE_MAX ? (size_t)(p - str) < len_bytes : *p != '\0'; ) {
-        int len;
-
-        if (_unlikely_(*p == '\0') && len_bytes != SIZE_MAX)
-            return NULL; /* embedded NUL */
-
-        //len = utf8_encoded_valid_unichar(p,
-        //    len_bytes != SIZE_MAX ? len_bytes - (p - str) : SIZE_MAX);
-        //if (_unlikely_(len < 0))
-        //    return NULL; /* invalid character */
-
-        p += len;
-    }
-
-    return (char*)str;
-}
-
-
 _public_ int sd_bus_creds_get_uid(sd_bus_creds* c, uid_t* uid) {
     assert_return(c, -EINVAL);
     assert_return(uid, -EINVAL);
@@ -539,4 +514,352 @@ _public_ int sd_bus_get_name_creds(
     uint64_t mask,
     sd_bus_creds** creds) {
     return 0;
+}
+
+
+
+_public_ int sd_bus_path_encode(const char* prefix, const char* external_id, char** ret_path) {
+    _cleanup_free_ char* e = NULL;
+    char* ret;
+
+    assert_return(object_path_is_valid(prefix), -EINVAL);
+    assert_return(external_id, -EINVAL);
+    assert_return(ret_path, -EINVAL);
+
+    e = bus_label_escape(external_id);
+    if (!e)
+        return -ENOMEM;
+
+    ret = path_join(prefix, e);
+    if (!ret)
+        return -ENOMEM;
+
+    *ret_path = ret;
+    return 0;
+}
+
+_public_ int sd_bus_path_decode(const char* path, const char* prefix, char** external_id) {
+    const char* e;
+    char* ret;
+
+    assert_return(object_path_is_valid(path), -EINVAL);
+    assert_return(object_path_is_valid(prefix), -EINVAL);
+    assert_return(external_id, -EINVAL);
+
+    e = object_path_startswith(path, prefix);
+    if (!e) {
+        *external_id = NULL;
+        return 0;
+    }
+
+    ret = bus_label_unescape(e);
+    if (!ret)
+        return -ENOMEM;
+
+    *external_id = ret;
+    return 1;
+}
+
+_public_ int sd_bus_path_encode_many(char** out, const char* path_template, ...) {
+    _cleanup_strv_free_ char** labels = NULL;
+    char* path, * path_pos, ** label_pos;
+    const char* sep, * template_pos;
+    size_t path_length;
+    va_list list;
+    int r;
+
+    assert_return(out, -EINVAL);
+    assert_return(path_template, -EINVAL);
+
+    path_length = strlen(path_template);
+
+    va_start(list, path_template);
+    for (sep = strchr(path_template, '%'); sep; sep = strchr(sep + 1, '%')) {
+        const char* arg;
+        char* label;
+
+        arg = va_arg(list, const char*);
+        if (!arg) {
+            va_end(list);
+            return -EINVAL;
+        }
+
+        label = bus_label_escape(arg);
+        if (!label) {
+            va_end(list);
+            return -ENOMEM;
+        }
+
+        r = strv_consume(&labels, label);
+        if (r < 0) {
+            va_end(list);
+            return r;
+        }
+
+        /* add label length, but account for the format character */
+        path_length += strlen(label) - 1;
+    }
+    va_end(list);
+
+    path = malloc(path_length + 1);
+    if (!path)
+        return -ENOMEM;
+
+    path_pos = path;
+    label_pos = labels;
+
+    for (template_pos = path_template; *template_pos; ) {
+        sep = strchrnul(template_pos, '%');
+        path_pos = mempcpy(path_pos, template_pos, sep - template_pos);
+        if (!*sep)
+            break;
+
+        path_pos = stpcpy(path_pos, *label_pos++);
+        template_pos = sep + 1;
+    }
+
+    *path_pos = 0;
+    *out = path;
+    return 0;
+}
+
+_public_ int sd_bus_path_decode_many(const char* path, const char* path_template, ...) {
+    _cleanup_strv_free_ char** labels = NULL;
+    const char* template_pos, * path_pos;
+    char** label_pos;
+    va_list list;
+    int r;
+
+    /*
+     * This decodes an object-path based on a template argument. The
+     * template consists of a verbatim path, optionally including special
+     * directives:
+     *
+     *   - Each occurrence of '%' in the template matches an arbitrary
+     *     substring of a label in the given path. At most one such
+     *     directive is allowed per label. For each such directive, the
+     *     caller must provide an output parameter (char **) via va_arg. If
+     *     NULL is passed, the given label is verified, but not returned.
+     *     For each matched label, the *decoded* label is stored in the
+     *     passed output argument, and the caller is responsible to free
+     *     it. Note that the output arguments are only modified if the
+     *     actually path matched the template. Otherwise, they're left
+     *     untouched.
+     *
+     * This function returns <0 on error, 0 if the path does not match the
+     * template, 1 if it matched.
+     */
+
+    assert_return(path, -EINVAL);
+    assert_return(path_template, -EINVAL);
+
+    path_pos = path;
+
+    for (template_pos = path_template; *template_pos; ) {
+        const char* sep;
+        size_t length;
+        char* label;
+
+        /* verify everything until the next '%' matches verbatim */
+        sep = strchrnul(template_pos, '%');
+        length = sep - template_pos;
+        if (strncmp(path_pos, template_pos, length))
+            return 0;
+
+        path_pos += length;
+        template_pos += length;
+
+        if (!*template_pos)
+            break;
+
+        /* We found the next '%' character. Everything up until here
+         * matched. We now skip ahead to the end of this label and make
+         * sure it matches the tail of the label in the path. Then we
+         * decode the string in-between and save it for later use. */
+
+        ++template_pos; /* skip over '%' */
+
+        sep = strchrnul(template_pos, '/');
+        length = sep - template_pos; /* length of suffix to match verbatim */
+
+        /* verify the suffixes match */
+        sep = strchrnul(path_pos, '/');
+        if (sep - path_pos < (ssize_t)length ||
+            strncmp(sep - length, template_pos, length))
+            return 0;
+
+        template_pos += length; /* skip over matched label */
+        length = sep - path_pos - length; /* length of sub-label to decode */
+
+        /* store unescaped label for later use */
+        label = bus_label_unescape_n(path_pos, length);
+        if (!label)
+            return -ENOMEM;
+
+        r = strv_consume(&labels, label);
+        if (r < 0)
+            return r;
+
+        path_pos = sep; /* skip decoded label and suffix */
+    }
+
+    /* end of template must match end of path */
+    if (*path_pos)
+        return 0;
+
+    /* copy the labels over to the caller */
+    va_start(list, path_template);
+    for (label_pos = labels; label_pos && *label_pos; ++label_pos) {
+        char** arg;
+
+        arg = va_arg(list, char**);
+        if (arg)
+            *arg = *label_pos;
+        else
+            free(*label_pos);
+    }
+    va_end(list);
+
+    //labels = mfree(labels);
+    free(labels);
+    labels = NULL;
+    return 1;
+}
+
+
+/**
+ * bus_path_encode_unique() - encode unique object path
+ * @b: bus connection or NULL
+ * @prefix: object path prefix
+ * @sender_id: unique-name of client, or NULL
+ * @external_id: external ID to be chosen by client, or NULL
+ * @ret_path: storage for encoded object path pointer
+ *
+ * Whenever we provide a bus API that allows clients to create and manage
+ * server-side objects, we need to provide a unique name for these objects. If
+ * we let the server choose the name, we suffer from a race condition: If a
+ * client creates an object asynchronously, it cannot destroy that object until
+ * it received the method reply. It cannot know the name of the new object,
+ * thus, it cannot destroy it. Furthermore, it enforces a round-trip.
+ *
+ * Therefore, many APIs allow the client to choose the unique name for newly
+ * created objects. There're two problems to solve, though:
+ *    1) Object names are usually defined via dbus object paths, which are
+ *       usually globally namespaced. Therefore, multiple clients must be able
+ *       to choose unique object names without interference.
+ *    2) If multiple libraries share the same bus connection, they must be
+ *       able to choose unique object names without interference.
+ * The first problem is solved easily by prefixing a name with the
+ * unique-bus-name of a connection. The server side must enforce this and
+ * reject any other name. The second problem is solved by providing unique
+ * suffixes from within sd-bus.
+ *
+ * This helper allows clients to create unique object-paths. It uses the
+ * template '/prefix/sender_id/external_id' and returns the new path in
+ * @ret_path (must be freed by the caller).
+ * If @sender_id is NULL, the unique-name of @b is used. If @external_id is
+ * NULL, this function allocates a unique suffix via @b (by requesting a new
+ * cookie). If both @sender_id and @external_id are given, @b can be passed as
+ * NULL.
+ *
+ * Returns: 0 on success, negative error code on failure.
+ */
+int bus_path_encode_unique(sd_bus* b, const char* prefix, const char* sender_id, const char* external_id, char** ret_path) {
+    _cleanup_free_ char* sender_label = NULL, * external_label = NULL;
+#ifdef WIN32
+    char external_buf[24];
+#else
+    char external_buf[DECIMAL_STR_MAX(uint64_t)];
+#endif
+    char *p;
+    int r;
+
+    assert_return(b || (sender_id && external_id), -EINVAL);
+    assert_return(sd_bus_object_path_is_valid(prefix), -EINVAL);
+    assert_return(ret_path, -EINVAL);
+
+/*
+    if (!sender_id) {
+        r = sd_bus_get_unique_name(b, &sender_id);
+        if (r < 0)
+            return r;
+    }
+*/
+    if (!external_id) {
+#ifdef WIN32
+        sprintf(external_buf, "%"PRIu64, ++b->cookie);
+#else
+        xsprintf(external_buf, "%"PRIu64, ++b->cookie);
+#endif
+        external_id = external_buf;
+    }
+
+    sender_label = bus_label_escape(sender_id);
+    if (!sender_label)
+        return -ENOMEM;
+
+    external_label = bus_label_escape(external_id);
+    if (!external_label)
+        return -ENOMEM;
+
+    p = path_join(prefix, sender_label, external_label);
+    if (!p)
+        return -ENOMEM;
+
+    *ret_path = p;
+    return 0;
+}
+
+/**
+ * bus_path_decode_unique() - decode unique object path
+ * @path: object path to decode
+ * @prefix: object path prefix
+ * @ret_sender: output parameter for sender-id label
+ * @ret_external: output parameter for external-id label
+ *
+ * This does the reverse of bus_path_encode_unique() (see its description for
+ * details). Both trailing labels, sender-id and external-id, are unescaped and
+ * returned in the given output parameters (the caller must free them).
+ *
+ * Note that this function returns 0 if the path does not match the template
+ * (see bus_path_encode_unique()), 1 if it matched.
+ *
+ * Returns: Negative error code on failure, 0 if the given object path does not
+ *          match the template (return parameters are set to NULL), 1 if it was
+ *          parsed successfully (return parameters contain allocated labels).
+ */
+int bus_path_decode_unique(const char* path, const char* prefix, char** ret_sender, char** ret_external) {
+    const char* p, * q;
+    char* sender, * external;
+
+    assert(sd_bus_object_path_is_valid(path));
+    assert(sd_bus_object_path_is_valid(prefix));
+    assert(ret_sender);
+    assert(ret_external);
+
+    p = object_path_startswith(path, prefix);
+    if (!p) {
+        *ret_sender = NULL;
+        *ret_external = NULL;
+        return 0;
+    }
+
+    q = strchr(p, '/');
+    if (!q) {
+        *ret_sender = NULL;
+        *ret_external = NULL;
+        return 0;
+    }
+
+    sender = bus_label_unescape_n(p, q - p);
+    external = bus_label_unescape(q + 1);
+    if (!sender || !external) {
+        free(sender);
+        free(external);
+        return -ENOMEM;
+    }
+
+    *ret_sender = sender;
+    *ret_external = external;
+    return 1;
 }

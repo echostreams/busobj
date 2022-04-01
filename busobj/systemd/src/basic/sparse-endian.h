@@ -22,9 +22,8 @@
  */
 #pragma once
 
-#if defined(__linux__)
+
 #include <byteswap.h>
-#endif
 
 #include <endian.h>
 #include <stdint.h>
