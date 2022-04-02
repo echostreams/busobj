@@ -2240,7 +2240,7 @@ int varlink_server_listen_fd(VarlinkServer *s, int fd) {
                         return r;
         }
 
-        LIST_PREPEND(sockets, s->sockets, TAKE_PTR(ss));
+        LIST_PREPEND(sockets, VarlinkServerSocket, s->sockets, TAKE_PTR(ss));
         return 0;
 }
 
@@ -2306,7 +2306,7 @@ static VarlinkServerSocket* varlink_server_socket_destroy(VarlinkServerSocket *s
                 return NULL;
 
         if (ss->server)
-                LIST_REMOVE(sockets, ss->server->sockets, ss);
+                LIST_REMOVE(sockets, VarlinkServerSocket, ss->server->sockets, ss);
 
         sd_event_source_disable_unref(ss->event_source);
 

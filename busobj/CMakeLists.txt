@@ -234,6 +234,7 @@ add_library(libsystemd-mini
 	#"systemd/src/shared/tests.c"
 	"systemd/src/shared/bus-object.c"
 	#"systemd/src/shared/bus-print-properties.c"
+	#"systemd/src/shared/varlink.c"
 
 	"windows/asprintf.c"
 	"windows/strndup.c"

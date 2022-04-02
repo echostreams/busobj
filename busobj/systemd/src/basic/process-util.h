@@ -18,6 +18,10 @@
 #include "macro.h"
 #include "time-util.h"
 
+#ifdef WIN32
+typedef int mode_t;
+#endif
+
 #define procfs_file_alloca(pid, field)                                  \
         ({                                                              \
                 pid_t _pid_ = (pid);                                    \
