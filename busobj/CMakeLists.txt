@@ -232,6 +232,8 @@ add_library(libsystemd-mini
 	"systemd/src/basic/gunicode.c"
 	"systemd/src/basic/prioq.c"
 	#"systemd/src/shared/tests.c"
+	"systemd/src/shared/bus-object.c"
+	#"systemd/src/shared/bus-print-properties.c"
 
 	"windows/asprintf.c"
 	"windows/strndup.c"

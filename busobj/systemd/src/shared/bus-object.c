@@ -123,8 +123,11 @@ int bus_introspect_implementations(
                 list_paths(out, bus_objects);
                 return 0;
         }
-
+#ifdef __cplusplus
         struct introspect intro = {};
+#else
+        struct introspect intro;
+#endif
         bool is_interface = sd_bus_interface_name_is_valid(pattern);
 
         impl = find_implementation(pattern, bus_objects);
