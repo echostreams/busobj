@@ -4,6 +4,13 @@
 #define RUSAGE_SELF	0
 #define RUSAGE_THREAD	1
 
+typedef unsigned long rlim_t;
+
+struct rlimit {
+	rlim_t rlim_cur;  /* Soft limit */
+	rlim_t rlim_max;  /* Hard limit (ceiling for rlim_cur) */
+};
+
 struct rusage
 {
 	struct timeval ru_utime;

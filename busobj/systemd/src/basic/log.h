@@ -224,7 +224,7 @@ inline int __log_full_errno_zerook(int level, int error, const char* format, ...
     int _level = (level), _e = (error);
     va_start(ap, format);
     _e = (log_get_max_level() >= LOG_PRI(_level))          
-        ? log_internal(_level, _e, __FILE__, __LINE__, __func__, format, ap)
+        ? log_internalv(_level, _e, __FILE__, __LINE__, __func__, format, ap)
         : -ERRNO_VALUE(_e); 
     va_end(ap);
     return _e < 0 ? _e : -ESTRPIPE;                                
@@ -273,18 +273,18 @@ inline int __log_full_errno(int level, int error, const char* format, ...)
                 if (BUILD_MODE_DEVELOPER)                              \
                         assert(!strstr(fmt, "%m"));                    \
                 /*(void) log_full_errno_zerook(level, 0, fmt, ##__VA_ARGS__);*/ \
-                __log_full_errno_zerook(level, 0, fmt, __VA_ARGS__); \
+                __log_full_errno_zerook(level, 0, fmt, ##__VA_ARGS__); \
         } while(0)
 #endif
 
 int log_emergency_level(void);
 
 /* Normal logging */
-#define log_debug(fmt, ...)     log_full(LOG_DEBUG, fmt, __VA_ARGS__)
+#define log_debug(fmt, ...)     log_full(LOG_DEBUG, fmt, ##__VA_ARGS__)
 #define log_info(fmt, ...)      log_full(LOG_INFO, fmt, __VA_ARGS__)
 #define log_notice(fmt, ...)    log_full(LOG_NOTICE, fmt, __VA_ARGS__)
 #define log_warning(fmt, ...)   log_full(LOG_WARNING, fmt, __VA_ARGS__)
-#define log_error(fmt, ...)     log_full(LOG_ERR, fmt, __VA_ARGS__)
+#define log_error(fmt, ...)     log_full(LOG_ERR, fmt, ##__VA_ARGS__)
 #define log_emergency(fmt, ...) log_full(log_emergency_level(), fmt, __VA_ARGS__)
 
 /* Logging triggered by an errno-like error */
@@ -294,7 +294,7 @@ int log_emergency_level(void);
 #define log_info_errno(error, ...)      log_full_errno(LOG_INFO,    error, __VA_ARGS__)
 #define log_notice_errno(error, ...)    log_full_errno(LOG_NOTICE,  error, __VA_ARGS__)
 #define log_warning_errno(error, ...)   log_full_errno(LOG_WARNING, error, __VA_ARGS__)
-#define log_error_errno(error, ...)     log_full_errno(LOG_ERR,   error, __VA_ARGS__)
+#define log_error_errno(error, ...)     log_full_errno(LOG_ERR,     error, __VA_ARGS__)
 #define log_emergency_errno(error, ...) log_full_errno(log_emergency_level(), error, __VA_ARGS__)
 #else
 #define log_debug_errno(error, fmt, ...)     __log_full_errno(LOG_DEBUG,   error, fmt, __VA_ARGS__)

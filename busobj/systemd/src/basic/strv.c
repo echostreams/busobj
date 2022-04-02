@@ -824,7 +824,7 @@ char** strv_reverse(char **l) {
                 return l;
 
         for (size_t i = 0; i < n / 2; i++)
-                SWAP_TWO(l[i], l[n-1-i]);
+                SWAP_TWO(l[i], l[n-1-i], char*);
 
         return l;
 }

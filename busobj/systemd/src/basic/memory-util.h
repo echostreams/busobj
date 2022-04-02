@@ -76,7 +76,7 @@ inline void* memmem(const void* src, int srclen, const void* trg, int trglen)
         if ((searchlen = srclen - ndx - trglen + 1) <= 0) {
             return NULL;
         } /* if */
-        if ((tptr = memchr(cptr, *ctrg, searchlen)) == NULL) {
+        if ((tptr = (unsigned char*)memchr(cptr, *ctrg, searchlen)) == NULL) {
             return NULL;
         } /* if */
         if (memcmp(tptr, ctrg, trglen) == 0) {

@@ -80,7 +80,7 @@ static void bus_track_add_to_queue(sd_bus_track *track) {
         if (!track->in_list)
                 return;
 
-        LIST_PREPEND(queue, track->bus->track_queue, track);
+        LIST_PREPEND(queue, sd_bus_track, track->bus->track_queue, track);
         track->in_queue = true;
 }
 
@@ -90,7 +90,7 @@ static void bus_track_remove_from_queue(sd_bus_track *track) {
         if (!track->in_queue)
                 return;
 
-        LIST_REMOVE(queue, track->bus->track_queue, track);
+        LIST_REMOVE(queue, sd_bus_track, track->bus->track_queue, track);
         track->in_queue = false;
 }
 
@@ -136,7 +136,7 @@ _public_ int sd_bus_track_new(
         t->userdata = userdata;
         t->bus = sd_bus_ref(bus);
 
-        LIST_PREPEND(tracks, bus->tracks, t);
+        LIST_PREPEND(tracks, sd_bus_track, bus->tracks, t);
         t->in_list = true;
 
         bus_track_add_to_queue(t);
@@ -149,7 +149,7 @@ static sd_bus_track *track_free(sd_bus_track *track) {
         assert(track);
 
         if (track->in_list)
-                LIST_REMOVE(tracks, track->bus->tracks, track);
+                LIST_REMOVE(tracks, sd_bus_track, track->bus->tracks, track);
 
         bus_track_remove_from_queue(track);
         track->names = hashmap_free(track->names);
@@ -391,7 +391,7 @@ void bus_track_close(sd_bus_track *track) {
                 return; /* We already closed this one, don't close it again. */
 
         /* Remember that this one is closed now */
-        LIST_REMOVE(tracks, track->bus->tracks, track);
+        LIST_REMOVE(tracks, sd_bus_track, track->bus->tracks, track);
         track->in_list = false;
 
         /* If there's no name in this one anyway, we don't have to dispatch */

@@ -192,6 +192,13 @@ assert_cc(TASKS_MAX <= (unsigned long) PID_T_MAX);
                 _pid_;                          \
         })
 
+static inline pid_t __TAKE_PID(pid_t pid) {
+    pid_t* _ppid_ = &(pid);         
+    pid_t _pid_ = *_ppid_;
+    * _ppid_ = 0;
+    return _pid_;
+}
+
 int pidfd_get_pid(int fd, pid_t *ret);
 
 int setpriority_closest(int priority);

@@ -995,8 +995,13 @@ int introspect_path(
                 /* Nothing?, let's see if we exist at all, and if not
                  * refuse to do anything */
                 r = bus_node_exists(bus, n, path, require_fallback);
-                if (r <= 0)
-                        return r;
+                if (r <= 0) {
+#ifdef WIN32
+                    // need to cleanup introspect temp file on Windows
+                    introspect_finish(&intro, ret);
+#endif
+                    return r;
+                }
                 if (bus->nodes_modified && !ignore_nodes_modified)
                         return 0;
         }

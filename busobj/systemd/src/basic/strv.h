@@ -250,6 +250,16 @@ int fputstrv(FILE *f, char * const *l, const char *separator, bool *space);
                 0;                              \
         })
 
+static inline int __strv_free_and_replace(char** a, char** b)
+{
+    char*** _a = &(a);
+    char*** _b = &(b);
+    strv_free(*_a);
+    (*_a) = (*_b);
+    (*_b) = NULL;
+    return 0;
+}
+
 extern const struct hash_ops string_strv_hash_ops;
 int _string_strv_hashmap_put(Hashmap **h, const char *key, const char *value  HASHMAP_DEBUG_PARAMS);
 int _string_strv_ordered_hashmap_put(OrderedHashmap **h, const char *key, const char *value  HASHMAP_DEBUG_PARAMS);

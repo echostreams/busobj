@@ -10,7 +10,7 @@
 struct introspect {
         FILE *f;
         char *interface_name;
-        char *introspection;
+        char *introspection; // on Windows, it's a temperory file name
         size_t size;
         bool trusted;
 };

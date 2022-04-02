@@ -888,7 +888,7 @@ static void source_disconnect(sd_event_source *s) {
                         assert_se(inotify_data = inode_data->inotify_data);
 
                         /* Detach this event source from the inode object */
-                        LIST_REMOVE(inotify.by_inode_data, inode_data->event_sources, s);
+                        LIST_REMOVE(inotify.by_inode_data, sd_event_source, inode_data->event_sources, s);
                         s->inotify.inode_data = NULL;
 
                         if (s->pending) {
@@ -928,7 +928,7 @@ static void source_disconnect(sd_event_source *s) {
                 event_source_time_prioq_remove(s, &s->event->monotonic);
 
         event = TAKE_PTR(s->event);
-        LIST_REMOVE(sources, event->sources, s);
+        LIST_REMOVE(sources, sd_event_source, event->sources, s);
         event->n_sources--;
 
         /* Note that we don't invalidate the type here, since we still need it in order to close the fd or
@@ -1062,7 +1062,7 @@ static sd_event_source *source_new(sd_event *e, bool floating, EventSourceType t
         if (!floating)
                 sd_event_ref(e);
 
-        LIST_PREPEND(sources, e->sources, s);
+        LIST_PREPEND(sources, sd_event_source, e->sources, s);
         e->n_sources++;
 
         return s;
@@ -1683,7 +1683,7 @@ static void event_free_inotify_data(sd_event *e, struct inotify_data *d) {
         assert(hashmap_isempty(d->wd));
 
         if (d->buffer_filled > 0)
-                LIST_REMOVE(buffered, e->inotify_data_buffered, d);
+                LIST_REMOVE(buffered, struct inotify_data, e->inotify_data_buffered, d);
 
         hashmap_free(d->inodes);
         hashmap_free(d->wd);
@@ -1794,7 +1794,7 @@ static void event_free_inode_data(
         assert(!d->event_sources);
 
         if (d->fd >= 0) {
-                LIST_REMOVE(to_close, e->inode_data_to_close, d);
+                LIST_REMOVE(to_close, struct inode_data, e->inode_data_to_close, d);
                 safe_close(d->fd);
         }
 
@@ -2057,11 +2057,11 @@ static int event_add_inotify_fd_internal(
                         }
                 }
 
-                LIST_PREPEND(to_close, e->inode_data_to_close, inode_data);
+                LIST_PREPEND(to_close, struct inode_data, e->inode_data_to_close, inode_data);
         }
 
         /* Link our event source to the inode data object */
-        LIST_PREPEND(inotify.by_inode_data, inode_data->event_sources, s);
+        LIST_PREPEND(inotify.by_inode_data, sd_event_source, inode_data->event_sources, s);
         s->inotify.inode_data = inode_data;
 
         /* Actually realize the watch now */
@@ -2344,20 +2344,20 @@ _public_ int sd_event_source_set_priority(sd_event_source *s, int64_t priority) 
                                 goto fail;
                         }
 
-                        LIST_PREPEND(to_close, s->event->inode_data_to_close, new_inode_data);
+                        LIST_PREPEND(to_close, struct inode_data, s->event->inode_data_to_close, new_inode_data);
                 }
 
                 /* Move the event source to the new inode data structure */
-                LIST_REMOVE(inotify.by_inode_data, old_inode_data->event_sources, s);
-                LIST_PREPEND(inotify.by_inode_data, new_inode_data->event_sources, s);
+                LIST_REMOVE(inotify.by_inode_data, sd_event_source, old_inode_data->event_sources, s);
+                LIST_PREPEND(inotify.by_inode_data, sd_event_source, new_inode_data->event_sources, s);
                 s->inotify.inode_data = new_inode_data;
 
                 /* Now create the new watch */
                 r = inode_data_realize_watch(s->event, new_inode_data);
                 if (r < 0) {
                         /* Move it back */
-                        LIST_REMOVE(inotify.by_inode_data, new_inode_data->event_sources, s);
-                        LIST_PREPEND(inotify.by_inode_data, old_inode_data->event_sources, s);
+                        LIST_REMOVE(inotify.by_inode_data, sd_event_source, new_inode_data->event_sources, s);
+                        LIST_PREPEND(inotify.by_inode_data, sd_event_source, old_inode_data->event_sources, s);
                         s->inotify.inode_data = old_inode_data;
                         goto fail;
                 }
@@ -3410,7 +3410,7 @@ static int event_inotify_data_read(sd_event *e, struct inotify_data *d, uint32_t
 
         assert(n > 0);
         d->buffer_filled = (size_t) n;
-        LIST_PREPEND(buffered, e->inotify_data_buffered, d);
+        LIST_PREPEND(buffered, struct inotify_data, e->inotify_data_buffered, d);
 
         return 1;
 }
@@ -3428,7 +3428,7 @@ static void event_inotify_data_drop(sd_event *e, struct inotify_data *d, size_t 
         d->buffer_filled -= sz;
 
         if (d->buffer_filled == 0)
-                LIST_REMOVE(buffered, e->inotify_data_buffered, d);
+                LIST_REMOVE(buffered, struct inotify_data, e->inotify_data_buffered, d);
 }
 
 static int event_inotify_data_process(sd_event *e, struct inotify_data *d) {
@@ -3827,7 +3827,7 @@ static void event_close_inode_data_fds(sd_event *e) {
                 assert(d->fd >= 0);
                 d->fd = safe_close(d->fd);
 
-                LIST_REMOVE(to_close, e->inode_data_to_close, d);
+                LIST_REMOVE(to_close, struct inode_data, e->inode_data_to_close, d);
         }
 }
 

@@ -282,13 +282,26 @@ int introspect_finish(struct introspect *i, char **ret) {
 
         char* buf = (char*)malloc(fsize + 1);
         size_t bytes = fread(buf, 1, fsize, i->f);
-        buf[bytes] = '\0';
-        i->introspection = buf;
-
-        //printf("%s\n", i->introspection);
+        buf[bytes] = '\0';        
 #endif
 
         i->f = safe_fclose(i->f);
+
+#ifdef WIN32
+        BOOL fSuccess = DeleteFile(i->introspection);
+        if (!fSuccess)
+        {
+            // Handle the error.
+            printf("DeleteFile() failed, error %d\n", GetLastError());
+        }
+        else {
+            printf("delete temp file: %s\n", i->introspection);
+        }
+
+        free(i->introspection);
+        i->introspection = buf;
+#endif
+
         //*ret = TAKE_PTR(i->introspection);
         *ret = i->introspection;
         i->introspection = NULL;

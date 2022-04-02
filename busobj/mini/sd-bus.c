@@ -235,8 +235,8 @@ _public_ int sd_bus_call_async(
 }
 
 _public_ int sd_bus_get_method_call_timeout(sd_bus* bus, uint64_t* ret) {
-    const char* e;
-    usec_t usec;
+    //const char* e;
+    //usec_t usec;
 
     assert_return(bus, -EINVAL);
     assert_return(bus = bus_resolve(bus), -ENOPKG);
@@ -772,7 +772,7 @@ int bus_path_encode_unique(sd_bus* b, const char* prefix, const char* sender_id,
     char external_buf[DECIMAL_STR_MAX(uint64_t)];
 #endif
     char *p;
-    int r;
+    //int r;
 
     assert_return(b || (sender_id && external_id), -EINVAL);
     assert_return(sd_bus_object_path_is_valid(prefix), -EINVAL);

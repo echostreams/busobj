@@ -364,6 +364,7 @@ static void test_introspect_on_path(void) {
 }
 
 int main(int argc, char *argv[]) {
+
         test_setup_logging(LOG_DEBUG);
 
         test_introspect_on_path();

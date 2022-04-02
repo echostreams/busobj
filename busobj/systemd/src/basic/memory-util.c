@@ -7,6 +7,7 @@
 #ifdef WIN32
 #include <Windows.h>
 #include <inttypes.h>
+#include <stdio.h>
 #endif
 
 size_t page_size(void) {

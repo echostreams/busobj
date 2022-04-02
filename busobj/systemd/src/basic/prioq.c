@@ -72,8 +72,8 @@ static void swap(Prioq *q, unsigned j, unsigned k) {
         assert(!q->items[j].idx || *(q->items[j].idx) == j);
         assert(!q->items[k].idx || *(q->items[k].idx) == k);
 
-        SWAP_TWO(q->items[j].data, q->items[k].data);
-        SWAP_TWO(q->items[j].idx, q->items[k].idx);
+        SWAP_TWO(q->items[j].data, q->items[k].data, void*);
+        SWAP_TWO(q->items[j].idx, q->items[k].idx, void*);
 
         if (q->items[j].idx)
                 *q->items[j].idx = j;

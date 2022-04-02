@@ -50,6 +50,7 @@ static inline int __builtin_ctzll(unsigned long long x) {
     _BitScanForward64(&ret, x);
     return (int)ret;
 }
+typedef int pid_t;
 #endif
 
 /* Note: log2(0) == log2(1) == 0 here and below. */
@@ -102,7 +103,7 @@ static inline unsigned log2u_round_up(unsigned x) {
         return log2u(x - 1) + 1;
 }
 
-//int container_get_leader(const char *machine, pid_t *pid);
+int container_get_leader(const char *machine, pid_t *pid);
 
 int version(void);
 

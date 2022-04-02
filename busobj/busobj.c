@@ -49,10 +49,10 @@ static void test_vtable(void) {
 
     assert(sd_bus_add_fallback_vtable(bus, NULL, "/fallback", "org.freedesktop.systemd.testVtable2", test_vtable_2, happy_finder, &c) >= 0);
 
-    //assert(sd_bus_set_address(bus, DEFAULT_BUS_PATH) >= 0);
-    //r = sd_bus_start(bus);
-    //assert(r == 0 ||     /* success */
-    //    r == -ENOENT  /* dbus is inactive */);
+    assert(sd_bus_set_address(bus, DEFAULT_BUS_PATH) >= 0);
+    r = sd_bus_start(bus);
+    assert(r == 0 ||     /* success */
+        r == -ENOENT  /* dbus is inactive */);
 
 #ifndef __cplusplus
     _cleanup_free_ char* s, * s2;

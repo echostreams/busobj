@@ -6,7 +6,7 @@
 #include "macro.h"
 
 /* Packet header */
-
+#pragma pack(push, 1)
 struct _packed_ bus_header {
         /* The first four fields are identical for dbus1, and dbus2 */
         uint8_t endian;
@@ -35,6 +35,7 @@ struct _packed_ bus_header {
                 /* Note that both header versions have the same size! */
         };
 };
+#pragma pack(pop)
 
 /* Endianness */
 

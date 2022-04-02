@@ -344,7 +344,8 @@ static int bus_socket_auth_write(sd_bus *b, const char *t) {
         assert(t);
 
         /* We only make use of the first iovec */
-        assert(IN_SET(b->auth_index, 0, 1));
+        //assert(IN_SET(b->auth_index, 0, 1));
+        assert((b->auth_index == 0 || b->auth_index == 1));
 
         l = strlen(t);
         p = malloc(b->auth_iovec[0].iov_len + l);
@@ -628,14 +629,16 @@ static void bus_get_peercred(sd_bus *b) {
 
         /* Get the SELinux context of the peer */
         r = getpeersec(b->input_fd, &b->label);
-        if (r < 0 && !IN_SET(r, -EOPNOTSUPP, -ENOPROTOOPT))
+        if (r < 0 && //!IN_SET(r, -EOPNOTSUPP, -ENOPROTOOPT))
+            !(r == -EOPNOTSUPP || r == -ENOPROTOOPT))
                 log_debug_errno(r, "Failed to determine peer security context: %m");
 
         /* Get the list of auxiliary groups of the peer */
         r = getpeergroups(b->input_fd, &b->groups);
         if (r >= 0)
                 b->n_groups = (size_t) r;
-        else if (!IN_SET(r, -EOPNOTSUPP, -ENOPROTOOPT))
+        else if //(!IN_SET(r, -EOPNOTSUPP, -ENOPROTOOPT))
+            (!(r == -EOPNOTSUPP || r == -ENOPROTOOPT))
                 log_debug_errno(r, "Failed to determine peer's group list: %m");
 }
 
@@ -727,7 +730,7 @@ static int bus_socket_inotify_setup(sd_bus *b) {
         }
 
         /* Make sure the path is NUL terminated */
-        p = strndupa_safe(b->sockaddr.un.sun_path,
+        p = __strndupa_safe(b->sockaddr.un.sun_path,
                           sizeof(b->sockaddr.un.sun_path));
 
         /* Make sure the path is absolute */
@@ -1030,7 +1033,8 @@ int bus_socket_write_message(sd_bus *bus, sd_bus_message *m, size_t *idx) {
         assert(bus);
         assert(m);
         assert(idx);
-        assert(IN_SET(bus->state, BUS_RUNNING, BUS_HELLO));
+        //assert(IN_SET(bus->state, BUS_RUNNING, BUS_HELLO));
+        assert((bus->state == BUS_RUNNING || bus->state == BUS_HELLO));
 
         if (*idx >= BUS_MESSAGE_SIZE(m))
                 return 0;

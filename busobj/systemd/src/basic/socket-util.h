@@ -268,6 +268,17 @@ struct cmsghdr* cmsg_find(struct msghdr *mh, int level, int type, socklen_t leng
                          strnlen(_sa->sun_path, sizeof(_sa->sun_path))+1); \
         })
 
+static inline int __SOCKADDR_UN_LEN(struct sockaddr_un sa)
+        {                                                              
+                const struct sockaddr_un *_sa = &(sa);                 
+                assert(_sa->sun_family == AF_UNIX);
+                return 
+                offsetof(struct sockaddr_un, sun_path) +               
+                        (_sa->sun_path[0] == 0 ?                       
+                         1 + strnlen(_sa->sun_path+1, sizeof(_sa->sun_path)-1) : 
+                         strnlen(_sa->sun_path, sizeof(_sa->sun_path))+1); 
+        }
+
 #define SOCKADDR_LEN(sa)                                                \
         ({                                                              \
                 const union sockaddr_union *__sa = &(sa);               \

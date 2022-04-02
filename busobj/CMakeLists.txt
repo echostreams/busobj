@@ -3,6 +3,25 @@
 #
 cmake_minimum_required (VERSION 3.8)
 
+include(TestBigEndian)
+TEST_BIG_ENDIAN(IS_BIG_ENDIAN)
+
+if(WIN32)
+	add_definitions(-DLITTLE_ENDIAN=1234)
+	add_definitions(-DBIG_ENDIAN=4321)
+	add_definitions(-DPDP_ENDIAN=3412)
+endif()
+
+if(IS_BIG_ENDIAN)
+ message(STATUS "BIG_ENDIAN")
+ add_definitions(-DBYTE_ORDER=BIG_ENDIAN)
+else()
+ message(STATUS "LITTLE_ENDIAN")
+ add_definitions(-DBYTE_ORDER=LITTLE_ENDIAN)
+endif()
+message(STATUS "CMAKE_C_BYTE_ORDER: ${CMAKE_C_BYTE_ORDER}")
+message(STATUS "CMAKE_CXX_BYTE_ORDER: ${CMAKE_CXX_BYTE_ORDER}")
+
 include_directories(
 	"systemd/src/systemd"
 	"systemd/src/libsystemd/sd-bus"
@@ -51,6 +70,7 @@ add_definitions(-DGPERF_LEN_TYPE=size_t)
 
 #add_definitions(-DENABLE_DEBUG_HASHMAP)
 
+if(NOT WIN32)
 add_library(libsystemd
 	"systemd/src/fundamental/string-util-fundamental.c"
 	"systemd/src/fundamental/sha256.c"
@@ -147,7 +167,7 @@ add_library(libsystemd
 	"systemd/src/libsystemd/sd-bus/bus-control.c"
 	"systemd/src/libsystemd/sd-bus/bus-socket.c"
 	"systemd/src/libsystemd/sd-bus/bus-track.c"
-#	"systemd/src/libsystemd/sd-bus/bus-dump.c"
+	"systemd/src/libsystemd/sd-bus/bus-dump.c"
 
 	"systemd/src/libsystemd/sd-event/sd-event.c"
 
@@ -163,11 +183,8 @@ add_executable (busobj
 )
 
 target_link_libraries(busobj libsystemd)
+target_link_libraries(busobj pthread cap rt)
 
-if(WIN32)
-
-else()
-	target_link_libraries(busobj pthread cap rt)
 endif()
 
 add_library(libsystemd-mini 
@@ -181,10 +198,11 @@ add_library(libsystemd-mini
 	"systemd/src/libsystemd/sd-bus/bus-match.c"
 	"systemd/src/libsystemd/sd-bus/bus-gvariant.c"
 	"systemd/src/libsystemd/sd-bus/bus-convenience.c"
-	"systemd/src/libsystemd/sd-bus/bus-control.c"
-	"systemd/src/libsystemd/sd-bus/bus-message.c"
+	#"systemd/src/libsystemd/sd-bus/bus-control.c"
+	#"systemd/src/libsystemd/sd-bus/bus-message.c"
 	#"systemd/src/libsystemd/sd-bus/sd-bus.c"
 	"systemd/src/libsystemd/sd-bus/bus-dump.c"
+	#"systemd/src/libsystemd/sd-bus/bus-socket.c"
 
 	"mini/bus-message.c"
 	"mini/sd-bus.c"
@@ -197,6 +215,8 @@ add_library(libsystemd-mini
 	"mini/escape.c"
 	"mini/string-util.c"
 	"mini/time-util.c"
+	"mini/locale-util.c"
+	"mini/tests.c"
 
 	"systemd/src/basic/errno-list.c"
 	"systemd/src/basic/ordered-set.c"
@@ -231,16 +251,19 @@ add_executable(test-busctl
                "systemd/src/busctl/busctl-introspect.c"
                "systemd/src/busctl/busctl-introspect.h")
 
-add_executable(test-hashmap-plain.c "systemd/src/test/test-hashmap-plain.c")
+#add_executable(test-hashmap-plain "systemd/src/test/test-hashmap-plain.c")
 add_executable(test-bus-marshal "systemd/src/libsystemd/sd-bus/test-bus-marshal.c")
 
 target_link_libraries(test-vtable libsystemd-mini)
+target_link_libraries(test-busctl libsystemd-mini)
+#target_link_libraries(test-hashmap-plain libsystemd-mini)
 target_link_libraries(test-bus-marshal libsystemd-mini)
 
 if(WIN32)
 	
 else()
 	target_link_libraries(test-vtable pthread rt)
+	target_link_libraries(test-busctl pthread rt)
 	target_link_libraries(test-bus-marshal pthread rt)
 endif()
 

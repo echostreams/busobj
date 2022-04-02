@@ -215,3 +215,22 @@ void* greedy_realloc0(void **p, size_t need, size_t size);
         })
 
 #include "memory-util.h"
+
+static inline char* __strndupa_safe(const char* s, size_t n)
+{
+    const char* _t = (s);
+
+    void* _q_;
+    size_t _l_ = strnlen(_t, (n));
+    size_t _nn_ = _l_ + 1;
+    assert(_nn_ <= ALLOCA_MAX);
+
+    _q_ = alloca(_nn_ == 0 ? 1 : _nn_);
+
+    ((uint8_t*)_q_)[_l_] = 0;
+    //return (char*)memcpy_safe(_q_, _q_, _l_);
+    if (_l_ == 0)
+        return (char*)_q_;
+    assert(_t);
+    return (char*)memcpy(_q_, _q_, n);
+}

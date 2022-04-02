@@ -46,6 +46,13 @@
 #include "strv.h"
 #include "user-util.h"
 
+#ifdef WIN32
+#define EPOLLIN     1
+#define EAI_SYSTEM  11  /* system error returned in errno */
+#define	ENOMEDIUM	123	/* No medium found */
+#define	EUNATCH		49	/* Protocol driver not attached */
+#endif
+
 #define log_debug_bus_message(m)                                         \
         do {                                                             \
                 sd_bus_message *_mm = (m);                               \
@@ -231,8 +238,7 @@ static sd_bus* bus_free(sd_bus *b) {
 
 #if defined(__linux__)
         assert_se(pthread_mutex_destroy(&b->memfd_cache_mutex) == 0);
-#endif;
-
+#endif
         //return mfree(b);
         free(b);
         return NULL;
@@ -317,7 +323,7 @@ _public_ int sd_bus_set_exec(sd_bus *bus, const char *path, char *const *argv) {
         if (r < 0)
                 return r;
 
-        return strv_free_and_replace(bus->exec_argv, a);
+        return __strv_free_and_replace(bus->exec_argv, a);
 }
 
 _public_ int sd_bus_set_bus_client(sd_bus *bus, int b) {
@@ -354,7 +360,8 @@ _public_ int sd_bus_negotiate_fds(sd_bus *bus, int b) {
 _public_ int sd_bus_negotiate_timestamp(sd_bus *bus, int b) {
         assert_return(bus, -EINVAL);
         assert_return(bus = bus_resolve(bus), -ENOPKG);
-        assert_return(!IN_SET(bus->state, BUS_CLOSING, BUS_CLOSED), -EPERM);
+        //assert_return(!IN_SET(bus->state, BUS_CLOSING, BUS_CLOSED), -EPERM);
+        assert_return(!(bus->state == BUS_CLOSING || bus->state == BUS_CLOSED), -EPERM);
         assert_return(!bus_pid_changed(bus), -ECHILD);
 
         /* This is not actually supported by any of our transports these days, but we do honour it for synthetic
@@ -368,7 +375,8 @@ _public_ int sd_bus_negotiate_creds(sd_bus *bus, int b, uint64_t mask) {
         assert_return(bus, -EINVAL);
         assert_return(bus = bus_resolve(bus), -ENOPKG);
         assert_return(mask <= _SD_BUS_CREDS_ALL, -EINVAL);
-        assert_return(!IN_SET(bus->state, BUS_CLOSING, BUS_CLOSED), -EPERM);
+        //assert_return(!IN_SET(bus->state, BUS_CLOSING, BUS_CLOSED), -EPERM);
+        assert_return(!(bus->state == BUS_CLOSING || bus->state == BUS_CLOSED), -EPERM);
         assert_return(!bus_pid_changed(bus), -ECHILD);
 
         SET_FLAG(bus->creds_mask, mask, b);
@@ -547,7 +555,8 @@ static int hello_callback(sd_bus_message *reply, void *userdata, sd_bus_error *e
         assert(reply);
         bus = reply->bus;
         assert(bus);
-        assert(IN_SET(bus->state, BUS_HELLO, BUS_CLOSING));
+        //assert(IN_SET(bus->state, BUS_HELLO, BUS_CLOSING));
+        assert((bus->state == BUS_HELLO || bus->state == BUS_CLOSING));
 
         r = sd_bus_message_get_errno(reply);
         if (r > 0) {
@@ -667,7 +676,9 @@ static int parse_address_key(const char **p, const char *key, char **value) {
         } else
                 a = *p;
 
-        while (!IN_SET(*a, ';', ',', 0)) {
+        //while (!IN_SET(*a, ';', ',', 0)) 
+        while (!(*a == ';' || *a == ',' || *a == 0))
+        {
                 char c;
 
                 if (*a == '%') {
@@ -706,7 +717,10 @@ static int parse_address_key(const char **p, const char *key, char **value) {
 
         *p = a;
 
-        free_and_replace(*value, r);
+        //free_and_replace(*value, r);
+        free(*value);
+        *value = r;
+        r = NULL;
 
         return 1;
 }
@@ -731,7 +745,9 @@ static int parse_unix_address(sd_bus *b, const char **p, char **guid) {
         assert(*p);
         assert(guid);
 
-        while (!IN_SET(**p, 0, ';')) {
+        //while (!IN_SET(**p, 0, ';')) 
+        while (!(**p == 0 || **p == ';'))
+        {
                 r = parse_address_key(p, "guid", guid);
                 if (r < 0)
                         return r;
@@ -803,7 +819,8 @@ static int parse_tcp_address(sd_bus *b, const char **p, char **guid) {
         assert(*p);
         assert(guid);
 
-        while (!IN_SET(**p, 0, ';')) {
+        //while (!IN_SET(**p, 0, ';')) {
+        while (!(**p == 0 || **p == ';')) {
                 r = parse_address_key(p, "guid", guid);
                 if (r < 0)
                         return r;
@@ -867,7 +884,9 @@ static int parse_exec_address(sd_bus *b, const char **p, char **guid) {
         assert(*p);
         assert(guid);
 
-        while (!IN_SET(**p, 0, ';')) {
+        //while (!IN_SET(**p, 0, ';')) 
+        while (!(**p == 0 || **p == ';'))
+        {
                 r = parse_address_key(p, "guid", guid);
                 if (r < 0)
                         goto fail;
@@ -957,7 +976,8 @@ static int parse_container_unix_address(sd_bus *b, const char **p, char **guid) 
         assert(*p);
         assert(guid);
 
-        while (!IN_SET(**p, 0, ';')) {
+        //while (!IN_SET(**p, 0, ';')) {
+        while (!(**p == 0 || **p == ';')) {
                 r = parse_address_key(p, "guid", guid);
                 if (r < 0)
                         return r;
@@ -986,10 +1006,16 @@ static int parse_container_unix_address(sd_bus *b, const char **p, char **guid) 
                 if (!hostname_is_valid(machine, VALID_HOSTNAME_DOT_HOST))
                         return -EINVAL;
 
-                free_and_replace(b->machine, machine);
-        } else
-                b->machine = mfree(b->machine);
-
+                //free_and_replace(b->machine, machine);
+                free(b->machine);
+                b->machine = machine;
+                machine = NULL;
+        }
+        else {
+                //b->machine = mfree(b->machine);
+                free(b->machine);
+                b->machine = NULL;
+        }
         if (pid) {
                 r = parse_pid(pid, &b->nspid);
                 if (r < 0)
@@ -1002,7 +1028,7 @@ static int parse_container_unix_address(sd_bus *b, const char **p, char **guid) 
                 /* Note that we use the old /var/run prefix here, to increase compatibility with really old containers */
                 .sun_path = "/var/run/dbus/system_bus_socket",
         };
-        b->sockaddr_size = SOCKADDR_UN_LEN(b->sockaddr.un);
+        b->sockaddr_size = __SOCKADDR_UN_LEN(b->sockaddr.un);
         b->is_local = false;
 
         return 0;
@@ -1014,9 +1040,13 @@ static void bus_reset_parsed_address(sd_bus *b) {
         zero(b->sockaddr);
         b->sockaddr_size = 0;
         b->exec_argv = strv_free(b->exec_argv);
-        b->exec_path = mfree(b->exec_path);
+        //b->exec_path = mfree(b->exec_path);
+        free(b->exec_path);
+        b->exec_path = NULL;
         b->server_id = SD_ID128_NULL;
-        b->machine = mfree(b->machine);
+        //b->machine = mfree(b->machine);
+        free(b->machine);
+        b->machine = NULL;
         b->nspid = 0;
 }
 
@@ -1098,7 +1128,7 @@ static void bus_kill_exec(sd_bus *bus) {
         if (!pid_is_valid(bus->busexec_pid))
                 return;
 
-        sigterm_wait(TAKE_PID(bus->busexec_pid));
+        sigterm_wait(__TAKE_PID(bus->busexec_pid));
 }
 
 static int bus_start_address(sd_bus *b) {
@@ -1172,7 +1202,7 @@ static int bus_start_fd(sd_bus *b) {
                 log_debug("sd-bus: starting bus%s%s on fds %d/%d (%s, %s)...",
                           b->description ? " " : "", strempty(b->description),
                           b->input_fd, b->output_fd,
-                          pi ?: "???", po ?: "???");
+                          pi ? pi : "???", po ? po : "???");
         }
 
         r = fd_nonblock(b->input_fd, true);
@@ -1274,7 +1304,9 @@ _public_ int sd_bus_open_with_description(sd_bus **ret, const char *description)
         if (r < 0)
                 return r;
 
-        *ret = TAKE_PTR(b);
+        //*ret = TAKE_PTR(b);
+        *ret = b;
+        b = NULL;
         return 0;
 }
 
@@ -1290,7 +1322,7 @@ int bus_set_address_system(sd_bus *b) {
 
         e = secure_getenv("DBUS_SYSTEM_BUS_ADDRESS");
 
-        r = sd_bus_set_address(b, e ?: DEFAULT_SYSTEM_BUS_ADDRESS);
+        r = sd_bus_set_address(b, e ? e : DEFAULT_SYSTEM_BUS_ADDRESS);
         if (r >= 0)
                 b->is_system = true;
         return r;
@@ -1328,7 +1360,9 @@ _public_ int sd_bus_open_system_with_description(sd_bus **ret, const char *descr
         if (r < 0)
                 return r;
 
-        *ret = TAKE_PTR(b);
+        //*ret = TAKE_PTR(b);
+        *ret = b;
+        b = NULL;
         return 0;
 }
 
@@ -1398,7 +1432,9 @@ _public_ int sd_bus_open_user_with_description(sd_bus **ret, const char *descrip
         if (r < 0)
                 return r;
 
-        *ret = TAKE_PTR(b);
+        //*ret = TAKE_PTR(b);
+        *ret = b;
+        b = NULL;
         return 0;
 }
 
@@ -1420,7 +1456,7 @@ int bus_set_address_system_remote(sd_bus *b, const char *host) {
                 rbracket = strchr(host, ']');
                 if (!rbracket)
                         return -EINVAL;
-                t = strndupa_safe(host + 1, rbracket - host - 1);
+                t = __strndupa_safe(host + 1, rbracket - host - 1);
                 e = bus_address_escape(t);
                 if (!e)
                         return -ENOMEM;
@@ -1453,7 +1489,7 @@ int bus_set_address_system_remote(sd_bus *b, const char *host) {
 
                 t = strchr(p, '/');
                 if (t) {
-                        p = strndupa_safe(p, t - p);
+                        p = __strndupa_safe(p, t - p);
                         got_forward_slash = true;
                 }
 
@@ -1461,7 +1497,9 @@ int bus_set_address_system_remote(sd_bus *b, const char *host) {
                         if (!hostname_is_valid(p, 0) || got_forward_slash)
                                 return -EINVAL;
 
-                        m = TAKE_PTR(p);
+                        //m = TAKE_PTR(p);
+                        m = p;
+                        p = NULL;
                         goto interpret_port_as_machine_old_syntax;
                 }
         }
@@ -1474,13 +1512,14 @@ interpret_port_as_machine_old_syntax:
                 /* Let's make sure this is not a port of some kind,
                  * and is a valid machine name. */
                 if (!in_charset(m, "0123456789") && hostname_is_valid(m, 0))
-                        c = strjoina(",argv", p ? "7" : "5", "=--machine=", m);
+                        //c = strjoina(",argv", p ? "7" : "5", "=--machine=", m);
+                        c = strjoin(",argv", p ? "7" : "5", "=--machine=", m);
         }
 
         if (!e) {
                 char *t;
 
-                t = strndupa_safe(host, strcspn(host, ":/"));
+                t = __strndupa_safe(host, strcspn(host, ":/"));
 
                 e = bus_address_escape(t);
                 if (!e)
@@ -1493,7 +1532,11 @@ interpret_port_as_machine_old_syntax:
         if (!a)
                 return -ENOMEM;
 
-        return free_and_replace(b->address, a);
+        //return free_and_replace(b->address, a);
+        free(b->address);
+        b->address = a;
+        a = NULL;
+        return 0;
 }
 
 _public_ int sd_bus_open_system_remote(sd_bus **ret, const char *host) {
@@ -1520,7 +1563,9 @@ _public_ int sd_bus_open_system_remote(sd_bus **ret, const char *host) {
         if (r < 0)
                 return r;
 
-        *ret = TAKE_PTR(b);
+        //*ret = TAKE_PTR(b);
+        *ret = b;
+        b = NULL;
         return 0;
 }
 
@@ -1579,10 +1624,10 @@ int bus_set_address_machine(sd_bus *b, bool user, const char *machine) {
                 /* systemd-run -M… -PGq --wait -pUser=… -pPAMName=login systemd-stdio-bridge */
 
                 a = strjoin("unixexec:path=systemd-run,"
-                            "argv1=-M", erhs ?: ".host", ","
+                            "argv1=-M", erhs ? erhs : ".host", ","
                             "argv2=-PGq,"
                             "argv3=--wait,"
-                            "argv4=-pUser%3d", eu ?: "root", ",",
+                            "argv4=-pUser%3d", eu ? eu : "root", ",",
                             "argv5=-pPAMName%3dlogin,"
                             "argv6=systemd-stdio-bridge");
                 if (!a)
@@ -1611,7 +1656,11 @@ int bus_set_address_machine(sd_bus *b, bool user, const char *machine) {
                         return -ENOMEM;
         }
 
-        return free_and_replace(b->address, a);
+        //return free_and_replace(b->address, a);
+        free(b->address);
+        b->address = a;
+        a = NULL;
+        return 0;
 }
 
 static int user_and_machine_valid(const char *user_and_machine) {
@@ -1669,8 +1718,10 @@ static int user_and_machine_equivalent(const char *user_and_machine) {
                 return true;
 
         /* Otherwise, we have to figure out our user id and name, and compare things with that. */
-        char buf[DECIMAL_STR_MAX(uid_t)];
-        xsprintf(buf, UID_FMT, uid);
+        //char buf[DECIMAL_STR_MAX(uid_t)];
+        char buf[24];
+        //xsprintf(buf, UID_FMT, uid);
+        snprintf(buf, ELEMENTSOF(buf), UID_FMT, uid);
 
         f = startswith(user_and_machine, buf);
         if (!f) {
@@ -1717,7 +1768,9 @@ _public_ int sd_bus_open_system_machine(sd_bus **ret, const char *user_and_machi
         if (r < 0)
                 return r;
 
-        *ret = TAKE_PTR(b);
+        //*ret = TAKE_PTR(b);
+        *ret = b;
+        b = NULL;
         return 0;
 }
 
@@ -1753,7 +1806,9 @@ _public_ int sd_bus_open_user_machine(sd_bus **ret, const char *user_and_machine
         if (r < 0)
                 return r;
 
-        *ret = TAKE_PTR(b);
+        //*ret = TAKE_PTR(b);
+        *ret = b;
+        b = NULL;
         return 0;
 }
 
@@ -1803,7 +1858,9 @@ _public_ sd_bus* sd_bus_flush_close_unref(sd_bus *bus) {
 void bus_enter_closing(sd_bus *bus) {
         assert(bus);
 
-        if (!IN_SET(bus->state, BUS_WATCH_BIND, BUS_OPENING, BUS_AUTHENTICATING, BUS_HELLO, BUS_RUNNING))
+        //if (!IN_SET(bus->state, BUS_WATCH_BIND, BUS_OPENING, BUS_AUTHENTICATING, BUS_HELLO, BUS_RUNNING))
+        if (!(bus->state == BUS_WATCH_BIND || bus->state == BUS_OPENING || 
+            bus->state == BUS_AUTHENTICATING || bus->state == BUS_HELLO, BUS_RUNNING))
                 return;
 
         bus_set_state(bus, BUS_CLOSING);
@@ -2017,7 +2074,8 @@ static int dispatch_wqueue(sd_bus *bus) {
         int r, ret = 0;
 
         assert(bus);
-        assert(IN_SET(bus->state, BUS_RUNNING, BUS_HELLO));
+        //assert(IN_SET(bus->state, BUS_RUNNING, BUS_HELLO));
+        assert((bus->state == BUS_RUNNING || bus->state == BUS_HELLO));
 
         while (bus->wqueue_size > 0) {
 
@@ -2082,7 +2140,8 @@ static int dispatch_rqueue(sd_bus *bus, sd_bus_message **m) {
 
         assert(bus);
         assert(m);
-        assert(IN_SET(bus->state, BUS_RUNNING, BUS_HELLO));
+        //assert(IN_SET(bus->state, BUS_RUNNING, BUS_HELLO));
+        assert((bus->state == BUS_RUNNING || bus->state == BUS_HELLO));
 
         for (;;) {
                 if (bus->rqueue_size > 0) {
@@ -2148,7 +2207,9 @@ _public_ int sd_bus_send(sd_bus *bus, sd_bus_message *_m, uint64_t *cookie) {
         if (m->dont_send)
                 goto finish;
 
-        if (IN_SET(bus->state, BUS_RUNNING, BUS_HELLO) && bus->wqueue_size <= 0) {
+        //if (IN_SET(bus->state, BUS_RUNNING, BUS_HELLO) 
+        if ((bus->state == BUS_RUNNING || bus->state == BUS_HELLO)
+            && bus->wqueue_size <= 0) {
                 size_t idx = 0;
 
                 r = bus_write_message(bus, m, &idx);
@@ -2230,7 +2291,8 @@ static usec_t calc_elapse(sd_bus *bus, uint64_t usec) {
          * with any connection setup states. Hence, if a method callback is started earlier than that we just store the
          * relative timestamp, and afterwards the absolute one. */
 
-        if (IN_SET(bus->state, BUS_WATCH_BIND, BUS_OPENING, BUS_AUTHENTICATING))
+        //if (IN_SET(bus->state, BUS_WATCH_BIND, BUS_OPENING, BUS_AUTHENTICATING))
+        if ((bus->state == BUS_WATCH_BIND || bus->state == BUS_OPENING || bus->state == BUS_AUTHENTICATING))
                 return usec;
         else
                 return usec_add(now(CLOCK_MONOTONIC), usec);
@@ -2337,7 +2399,8 @@ int bus_ensure_running(sd_bus *bus) {
                 return 1;
 
         for (;;) {
-                if (IN_SET(bus->state, BUS_UNSET, BUS_CLOSED, BUS_CLOSING))
+                //if (IN_SET(bus->state, BUS_UNSET, BUS_CLOSED, BUS_CLOSING))
+                if ((bus->state == BUS_UNSET || bus->state == BUS_CLOSED || bus->state == BUS_CLOSING))
                         return -ENOTCONN;
 
                 r = sd_bus_process(bus, NULL);
@@ -2420,9 +2483,11 @@ _public_ int sd_bus_call(
                                 if (incoming->header->type == SD_BUS_MESSAGE_METHOD_RETURN) {
 
                                         if (incoming->n_fds <= 0 || bus->accept_fd) {
-                                                if (reply)
-                                                        *reply = TAKE_PTR(incoming);
-
+                                                if (reply) {
+                                                    //*reply = TAKE_PTR(incoming);
+                                                    *reply = incoming;
+                                                    incoming = NULL;
+                                                }
                                                 return 1;
                                         }
 
@@ -2632,7 +2697,8 @@ static int process_timeout(sd_bus *bus) {
         int r;
 
         assert(bus);
-        assert(IN_SET(bus->state, BUS_RUNNING, BUS_HELLO));
+        //assert(IN_SET(bus->state, BUS_RUNNING, BUS_HELLO));
+        assert((bus->state == BUS_RUNNING || bus->state == BUS_HELLO));
 
         c = prioq_peek(bus->reply_callbacks_prioq);
         if (!c)
@@ -2703,7 +2769,8 @@ static int process_hello(sd_bus *bus, sd_bus_message *m) {
          * here (we leave that to the usual handling), we just verify
          * we don't let any earlier msg through. */
 
-        if (!IN_SET(m->header->type, SD_BUS_MESSAGE_METHOD_RETURN, SD_BUS_MESSAGE_METHOD_ERROR))
+        //if (!IN_SET(m->header->type, SD_BUS_MESSAGE_METHOD_RETURN, SD_BUS_MESSAGE_METHOD_ERROR))
+        if (!(m->header->type == SD_BUS_MESSAGE_METHOD_RETURN || m->header->type == SD_BUS_MESSAGE_METHOD_ERROR))
                 return -EIO;
 
         if (m->reply_cookie != 1)
@@ -2723,7 +2790,8 @@ static int process_reply(sd_bus *bus, sd_bus_message *m) {
         assert(bus);
         assert(m);
 
-        if (!IN_SET(m->header->type, SD_BUS_MESSAGE_METHOD_RETURN, SD_BUS_MESSAGE_METHOD_ERROR))
+        //if (!IN_SET(m->header->type, SD_BUS_MESSAGE_METHOD_RETURN, SD_BUS_MESSAGE_METHOD_ERROR))
+        if (!(m->header->type == SD_BUS_MESSAGE_METHOD_RETURN || m->header->type == SD_BUS_MESSAGE_METHOD_ERROR))
                 return 0;
 
         if (m->destination && bus->unique_name && !streq_ptr(m->destination, bus->unique_name))
@@ -2896,7 +2964,11 @@ static int process_builtin(sd_bus *bus, sd_bus_message *m) {
                 if (r < 0)
                         return r;
 
-                r = sd_bus_message_append(reply, "s", SD_ID128_TO_STRING(id));
+                //r = sd_bus_message_append(reply, "s", SD_ID128_TO_STRING(id));
+                char idbuf[SD_ID128_STRING_MAX];
+                char* id128 = sd_id128_to_string(id, idbuf);
+                sd_bus_message_append(reply, "s", id128);
+                
         } else {
                 r = sd_bus_message_new_method_errorf(
                                 m, &reply,
@@ -2996,7 +3068,8 @@ static int process_running(sd_bus *bus, sd_bus_message **ret) {
         int r;
 
         assert(bus);
-        assert(IN_SET(bus->state, BUS_RUNNING, BUS_HELLO));
+        //assert(IN_SET(bus->state, BUS_RUNNING, BUS_HELLO));
+        assert((bus->state == BUS_RUNNING || bus->state == BUS_HELLO));
 
         r = process_timeout(bus);
         if (r != 0)
@@ -3025,7 +3098,9 @@ static int process_running(sd_bus *bus, sd_bus_message **ret) {
                 if (r < 0)
                         return r;
 
-                *ret = TAKE_PTR(m);
+                //*ret = TAKE_PTR(m);
+                *ret = m;
+                m = NULL;
                 return 1;
         }
 
@@ -3185,9 +3260,11 @@ static int process_closing(sd_bus *bus, sd_bus_message **ret) {
         bus->exit_triggered = true;
         (void) bus_exit_now(bus);
 
-        if (ret)
-                *ret = TAKE_PTR(m);
-
+        if (ret) {
+            //*ret = TAKE_PTR(m);
+            *ret = m;
+            m = NULL;
+        }
         r = 1;
 
 finish:
@@ -3271,7 +3348,7 @@ _public_ int sd_bus_process_priority(sd_bus *bus, int64_t priority, sd_bus_messa
 }
 
 static int bus_poll(sd_bus *bus, bool need_more, uint64_t timeout_usec) {
-        struct pollfd p[2] = {};
+        struct pollfd p[2] = { -1, -1 };
         usec_t m = USEC_INFINITY;
         int r, n;
 
@@ -3417,7 +3494,7 @@ _public_ int sd_bus_add_filter(
         s->filter_callback.callback = callback;
 
         bus->filter_callbacks_modified = true;
-        LIST_PREPEND(callbacks, bus->filter_callbacks, &s->filter_callback);
+        LIST_PREPEND(callbacks, struct filter_callback, bus->filter_callbacks, &s->filter_callback);
 
         if (slot)
                 *slot = s;
@@ -4156,7 +4233,9 @@ _public_ int sd_bus_path_decode_many(const char *path, const char *path_template
         }
         va_end(list);
 
-        labels = mfree(labels);
+        //labels = mfree(labels);
+        free(labels);
+        labels = NULL;
         return 1;
 }
 

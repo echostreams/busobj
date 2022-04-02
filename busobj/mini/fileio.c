@@ -2,12 +2,15 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <tchar.h>
+#include <io.h>
 #else
 #include <fcntl.h>
 #include <stdio_ext.h>
 #include <unistd.h>
-#include <sys/mman.h>
 #endif
+
+#include <sys/mman.h>
+
 
 #include <stdio.h>
 #include "log.h"
@@ -220,10 +223,13 @@ extern "C" {
             return NULL;
         }
 
-        printf("open temp file: %s\n", szTempFileName);
+        printf("create temp file: %s\n", szTempFileName);
 
         FILE* f = fopen(szTempFileName, "w+");
-
+        if (!f)
+            return NULL;
+        // save the temp file name to i->introspect
+        *ptr = strdup(szTempFileName);
 #else
 
         FILE* f = open_memstream(ptr, sizeloc);
