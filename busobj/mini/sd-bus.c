@@ -96,7 +96,7 @@ static sd_bus* bus_free(sd_bus* b) {
     //bus_reset_queues(b);
 
     ordered_hashmap_free_free(b->reply_callbacks);
-    //prioq_free(b->reply_callbacks_prioq);
+    prioq_free(b->reply_callbacks_prioq);
 
     assert(b->match_callbacks.type == BUS_MATCH_ROOT);
     bus_match_free(&b->match_callbacks);
@@ -257,22 +257,6 @@ _public_ int sd_bus_get_method_call_timeout(sd_bus* bus, uint64_t* ret) {
 
     *ret = bus->method_call_timeout = BUS_DEFAULT_TIMEOUT;
     return 0;
-}
-
-int prioq_remove(Prioq* q, void* data, unsigned* idx) {
-    /*
-    struct prioq_item* i;
-
-    if (!q)
-        return 0;
-
-    i = find_item(q, data, idx);
-    if (!i)
-        return 0;
-
-    remove_item(q, i);
-    */
-    return 1;
 }
 
 #define append_eavesdrop(bus, m)                                        \

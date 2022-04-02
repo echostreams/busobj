@@ -230,6 +230,7 @@ add_library(libsystemd-mini
 	"systemd/src/basic/bus-label.c"
 	"systemd/src/basic/utf8.c"
 	"systemd/src/basic/gunicode.c"
+	"systemd/src/basic/prioq.c"
 	#"systemd/src/shared/tests.c"
 
 	"windows/asprintf.c"
