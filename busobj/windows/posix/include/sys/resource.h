@@ -1,6 +1,8 @@
 #ifndef SYS_RESOURCE_H
 #define SYS_RESOURCE_H
 
+#include <WinSock2.h>	// struct timeval
+
 #define RUSAGE_SELF	0
 #define RUSAGE_THREAD	1
 

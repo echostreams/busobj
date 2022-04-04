@@ -136,12 +136,21 @@ static int bus_socket_write_auth(sd_bus *b) {
         if (b->prefer_writev)
                 k = writev(b->output_fd, b->auth_iovec + b->auth_index, ELEMENTSOF(b->auth_iovec) - b->auth_index);
         else {
+#ifdef WIN32
+            DWORD dwBytes;
+            WSABUF mh = {
+                .buf = b->auth_iovec + b->auth_index,
+                .len = ELEMENTSOF(b->auth_iovec) - b->auth_index,
+            };
+            WSASend(b->output_fd, &mh, 1, &dwBytes, 0, NULL, NULL);
+#else
                 struct msghdr mh = {
                         .msg_iov = b->auth_iovec + b->auth_index,
                         .msg_iovlen = ELEMENTSOF(b->auth_iovec) - b->auth_index,
                 };
 
                 k = sendmsg(b->output_fd, &mh, MSG_DONTWAIT|MSG_NOSIGNAL);
+#endif
                 if (k < 0 && errno == ENOTSOCK) {
                         b->prefer_writev = true;
                         k = writev(b->output_fd, b->auth_iovec + b->auth_index, ELEMENTSOF(b->auth_iovec) - b->auth_index);
@@ -800,7 +809,8 @@ static int bus_socket_inotify_setup(sd_bus *b) {
                 log_debug("Added inotify watch for %s on bus %s: %i", prefix, strna(b->description), wd);
 
                 if (wd < 0) {
-                        if (IN_SET(errno, ENOENT, ELOOP))
+                        //if (IN_SET(errno, ENOENT, ELOOP))
+                        if ((errno == ENOENT || errno == ELOOP))
                                 break; /* This component doesn't exist yet, or the path contains a cyclic symlink right now */
 
                         r = log_debug_errno(errno, "Failed to add inotify watch on %s: %m", empty_to_root(prefix));
@@ -920,7 +930,9 @@ int bus_socket_connect(sd_bus *b) {
                                 return 1;
                         }
 
-                        if (IN_SET(errno, ENOENT, ECONNREFUSED) &&  /* ENOENT → unix socket doesn't exist at all; ECONNREFUSED → unix socket stale */
+                        //if (IN_SET(errno, ENOENT, ECONNREFUSED)
+                        if ((errno == ENOENT || errno == ECONNREFUSED)
+                            &&  /* ENOENT → unix socket doesn't exist at all; ECONNREFUSED → unix socket stale */
                             b->watch_bind &&
                             b->sockaddr.sa.sa_family == AF_UNIX &&
                             b->sockaddr.un.sun_path[0] != 0) {
@@ -976,7 +988,7 @@ int bus_socket_exec(sd_bus *b) {
 
                 log_debug("sd-bus: starting bus%s%s with %s%s",
                           b->description ? " " : "", strempty(b->description),
-                          line ?: b->exec_path,
+                          line ? line : b->exec_path,
                           b->exec_argv && !line ? "…" : "");
         }
 
@@ -1091,7 +1103,8 @@ static int bus_socket_read_message_need(sd_bus *bus, size_t *need) {
 
         assert(bus);
         assert(need);
-        assert(IN_SET(bus->state, BUS_RUNNING, BUS_HELLO));
+        //assert(IN_SET(bus->state, BUS_RUNNING, BUS_HELLO));
+        assert((bus->state == BUS_RUNNING || bus->state == BUS_HELLO));
 
         if (bus->rbuffer_size < sizeof(struct bus_header)) {
                 *need = sizeof(struct bus_header) + 8;
@@ -1143,7 +1156,8 @@ static int bus_socket_make_message(sd_bus *bus, size_t size) {
 
         assert(bus);
         assert(bus->rbuffer_size >= size);
-        assert(IN_SET(bus->state, BUS_RUNNING, BUS_HELLO));
+        //assert(IN_SET(bus->state, BUS_RUNNING, BUS_HELLO));
+        assert((bus->state == BUS_RUNNING || bus->state == BUS_HELLO));
 
         r = bus_rqueue_make_room(bus);
         if (r < 0)
@@ -1197,7 +1211,8 @@ int bus_socket_read_message(sd_bus *bus) {
         bool handle_cmsg = false;
 
         assert(bus);
-        assert(IN_SET(bus->state, BUS_RUNNING, BUS_HELLO));
+        //assert(IN_SET(bus->state, BUS_RUNNING, BUS_HELLO));
+        assert((bus->state == BUS_RUNNING || bus->state == BUS_HELLO));
 
         r = bus_socket_read_message_need(bus, &need);
         if (r < 0)

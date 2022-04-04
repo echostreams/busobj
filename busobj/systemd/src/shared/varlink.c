@@ -221,11 +221,13 @@ DEFINE_PRIVATE_STRING_TABLE_LOOKUP_TO_STRING(varlink_state, VarlinkState);
         log_debug("%s: " fmt, varlink_server_description(s), ##__VA_ARGS__)
 
 static inline const char *varlink_description(Varlink *v) {
-        return (v ? v->description : NULL) ?: "varlink";
+    char* desc = v ? v->description : NULL;
+    return (desc) ? desc : "varlink";
 }
 
 static inline const char *varlink_server_description(VarlinkServer *s) {
-        return (s ? s->description : NULL) ?: "varlink";
+    char* desc = s ? s->description : NULL;
+    return (desc) ? desc : "varlink";
 }
 
 static void varlink_set_state(Varlink *v, VarlinkState state) {
@@ -293,7 +295,8 @@ int varlink_connect_address(Varlink **ret, const char *address) {
         v->fd = fd_move_above_stdio(v->fd);
 
         if (connect(v->fd, &sockaddr.sa, sockaddr_len) < 0) {
-                if (!IN_SET(errno, EAGAIN, EINPROGRESS))
+                //if (!IN_SET(errno, EAGAIN, EINPROGRESS))
+                if (!(errno == EAGAIN || errno == EINPROGRESS))
                         return log_debug_errno(errno, "Failed to connect to %s: %m", address);
 
                 v->connecting = true; /* We are asynchronously connecting, i.e. the connect() is being
@@ -309,7 +312,9 @@ int varlink_connect_address(Varlink **ret, const char *address) {
 
         varlink_set_state(v, VARLINK_IDLE_CLIENT);
 
-        *ret = TAKE_PTR(v);
+        //*ret = TAKE_PTR(v);
+        *ret = v;
+        v = NULL;
         return 0;
 }
 
@@ -358,8 +363,12 @@ static void varlink_clear(Varlink *v) {
 
         v->fd = safe_close(v->fd);
 
-        v->input_buffer = mfree(v->input_buffer);
-        v->output_buffer = mfree(v->output_buffer);
+        //v->input_buffer = mfree(v->input_buffer);
+        free(v->input_buffer);
+        v->input_buffer = NULL;
+        //v->output_buffer = mfree(v->output_buffer);
+        free(v->output_buffer);
+        v->output_buffer = NULL;
 
         v->current = json_variant_unref(v->current);
         v->reply = json_variant_unref(v->reply);
@@ -378,7 +387,9 @@ static Varlink* varlink_destroy(Varlink *v) {
         varlink_clear(v);
 
         free(v->description);
-        return mfree(v);
+        //return mfree(v);
+        free(v);
+        return NULL;
 }
 
 DEFINE_TRIVIAL_REF_UNREF_FUNC(Varlink, varlink, varlink_destroy);

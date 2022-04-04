@@ -231,6 +231,7 @@ add_library(libsystemd-mini
 	"systemd/src/basic/utf8.c"
 	"systemd/src/basic/gunicode.c"
 	"systemd/src/basic/prioq.c"
+	"systemd/src/basic/mempool.c"
 	#"systemd/src/shared/tests.c"
 	"systemd/src/shared/bus-object.c"
 	#"systemd/src/shared/bus-print-properties.c"
@@ -243,6 +244,9 @@ add_library(libsystemd-mini
 	"windows/win_clock_gettime.c"
 
 	"systemd/src/busctl/busctl-introspect.c"
+
+	#"systemd/src/libsystemd/sd-event/sd-event.c"
+	#"systemd/src/libsystemd/sd-daemon/sd-daemon.c"
 )
 
 # Add source to this project's executable.

@@ -2,7 +2,9 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 
 #include <sys/epoll.h>
+#if defined(__linux__)
 #include <sys/timerfd.h>
+#endif
 #include <sys/wait.h>
 
 #include "sd-event.h"

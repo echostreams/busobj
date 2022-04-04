@@ -1041,14 +1041,6 @@ void bus_match_free(struct bus_match_node *node) {
                 bus_match_node_free(node);
 }
 
-const char* __snprintf_ok(char *buf, size_t len, const char *fmt, int index)                                
-{
-    char *_buf = (buf);                                    
-    size_t _len = (len);                                   
-    int _snpf = snprintf(_buf, _len, (fmt), index);
-    return _snpf >= 0 && (size_t) _snpf < _len ? _buf : NULL;
-}
-
 const char* bus_match_node_type_to_string(enum bus_match_node_type t, char buf[], size_t l) {
         switch (t) {
 

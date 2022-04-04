@@ -23,6 +23,7 @@
 #include <poll.h>
 #include <sys/wait.h>
 #include <setjmp.h>
+#include <io.h>
 
 //#include "../os-windows.h"
 //#include "../../lib/hweight.h"
@@ -841,9 +842,21 @@ ssize_t pread(int fildes, void *buf, size_t nbyte, off_t offset)
 
 ssize_t readv(int fildes, const struct iovec *iov, int iovcnt)
 {
-	log_err("%s is not implemented\n", __func__);
-	errno = ENOSYS;
-	return -1;
+	//log_err("%s is not implemented\n", __func__);
+	//errno = ENOSYS;
+	//return -1;
+
+	long r, t = 0;
+	while (iovcnt)
+	{
+		r = read(fildes, iov->iov_base, iov->iov_len);
+		if (r < 0)
+			return r;
+		t += r;
+		iov++;
+		iovcnt--;
+	}
+	return t;
 }
 
 ssize_t writev(int fildes, const struct iovec *iov, int iovcnt)

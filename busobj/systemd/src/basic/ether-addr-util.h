@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 #pragma once
 
+#if defined (__linux__)
 #include <linux/if_infiniband.h>
 #include <net/ethernet.h>
+#endif
 #include <stdbool.h>
 
 #include "hash-funcs.h"

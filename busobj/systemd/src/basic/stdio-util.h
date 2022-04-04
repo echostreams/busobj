@@ -19,8 +19,19 @@
                 _snpf >= 0 && (size_t) _snpf < _len ? _buf : NULL;     \
         })
 
+inline char* __snprintf_ok(char *buf, size_t len, const char *fmt, ...)                                
+{
+        char* _buf = (buf);                                    
+        size_t _len = (len);                                   
+        va_list ap;
+        va_start(ap, fmt);
+        int _snpf = vsnprintf(_buf, _len, (fmt), ap);  
+        va_end(ap);
+        return _snpf >= 0 && (size_t)_snpf < _len ? _buf : NULL;
+    }
+
 #define xsprintf(buf, fmt, ...) \
-        assert_message_se(snprintf_ok(buf, ELEMENTSOF(buf), fmt, __VA_ARGS__), "xsprintf: " #buf "[] must be big enough")
+        assert_message_se(__snprintf_ok(buf, ELEMENTSOF(buf), fmt, __VA_ARGS__), "xsprintf: " #buf "[] must be big enough")
 
 #define VA_FORMAT_ADVANCE(format, ap)                                   \
 do {                                                                    \

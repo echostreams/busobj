@@ -216,8 +216,15 @@ ssize_t next_datagram_size_fd(int fd);
 
 int flush_accept(int fd);
 
+#ifdef WIN32
+
+#define CMSG_FOREACH(cmsg, mh)                                          \
+        for ((cmsg) = WSA_CMSG_FIRSTHDR(mh); (cmsg); (cmsg) = WSA_CMSG_NXTHDR((mh), (cmsg)))
+#else
+
 #define CMSG_FOREACH(cmsg, mh)                                          \
         for ((cmsg) = CMSG_FIRSTHDR(mh); (cmsg); (cmsg) = CMSG_NXTHDR((mh), (cmsg)))
+#endif
 
 struct cmsghdr* cmsg_find(struct msghdr *mh, int level, int type, socklen_t length);
 
