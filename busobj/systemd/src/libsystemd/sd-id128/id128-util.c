@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #ifdef WIN32
+#include <io.h>
 #define	ENOMEDIUM	123	/* No medium found */
 #endif
 #include <fcntl.h>
@@ -120,7 +121,7 @@ int id128_read(const char *p, Id128Format f, sd_id128_t *ret) {
         _cleanup_close_ int fd = -1;
 
 #ifdef WIN32
-        fd = open(p, O_RDONLY);
+        fd = _open(p, O_RDONLY);
 #else
         fd = open(p, O_RDONLY|O_CLOEXEC|O_NOCTTY);
 #endif
@@ -165,7 +166,7 @@ int id128_write(const char *p, Id128Format f, sd_id128_t id, bool do_sync) {
         _cleanup_close_ int fd = -1;
 
 #ifdef WIN32
-        fd = open(p, O_WRONLY | O_CREAT | O_TRUNC, 0444);
+        fd = _open(p, O_WRONLY | O_CREAT | O_TRUNC, 0444);
 #else
         fd = open(p, O_WRONLY|O_CREAT|O_CLOEXEC|O_NOCTTY|O_TRUNC, 0444);
 #endif
