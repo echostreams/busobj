@@ -247,6 +247,8 @@ add_library(libsystemd-mini
 
 	#"systemd/src/libsystemd/sd-event/sd-event.c"
 	#"systemd/src/libsystemd/sd-daemon/sd-daemon.c"
+	"systemd/src/libsystemd/sd-id128/sd-id128.c"
+	"systemd/src/libsystemd/sd-id128/id128-util.c"
 )
 
 # Add source to this project's executable.

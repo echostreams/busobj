@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 
 #include <errno.h>
+#ifdef WIN32
+#define	ENOMEDIUM	123	/* No medium found */
+#endif
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -38,7 +41,8 @@ bool id128_is_valid(const char *s) {
                 for (i = 0; i < l; i++) {
                         char c = s[i];
 
-                        if (IN_SET(i, 8, 13, 18, 23)) {
+                        //if (IN_SET(i, 8, 13, 18, 23)) {
+                        if ((i == 8 || i == 13 || i == 18 || i == 23)) {
                                 if (c != '-')
                                         return false;
                         } else {
@@ -98,7 +102,8 @@ int id128_read_fd(int fd, Id128Format f, sd_id128_t *ret) {
 
                 _fallthrough_;
         case 36: /* RFC UUID without trailing newline */
-                if (IN_SET(f, ID128_PLAIN, ID128_PLAIN_OR_UNINIT))
+                //if (IN_SET(f, ID128_PLAIN, ID128_PLAIN_OR_UNINIT))
+                if ((f == ID128_PLAIN || f == ID128_PLAIN_OR_UNINIT))
                         return -EINVAL;
 
                 buffer[36] = 0;
@@ -114,7 +119,11 @@ int id128_read_fd(int fd, Id128Format f, sd_id128_t *ret) {
 int id128_read(const char *p, Id128Format f, sd_id128_t *ret) {
         _cleanup_close_ int fd = -1;
 
+#ifdef WIN32
+        fd = open(p, O_RDONLY);
+#else
         fd = open(p, O_RDONLY|O_CLOEXEC|O_NOCTTY);
+#endif
         if (fd < 0)
                 return -errno;
 
@@ -155,7 +164,11 @@ int id128_write_fd(int fd, Id128Format f, sd_id128_t id, bool do_sync) {
 int id128_write(const char *p, Id128Format f, sd_id128_t id, bool do_sync) {
         _cleanup_close_ int fd = -1;
 
+#ifdef WIN32
+        fd = open(p, O_WRONLY | O_CREAT | O_TRUNC, 0444);
+#else
         fd = open(p, O_WRONLY|O_CREAT|O_CLOEXEC|O_NOCTTY|O_TRUNC, 0444);
+#endif
         if (fd < 0)
                 return -errno;
 

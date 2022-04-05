@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 
 #include <errno.h>
+#ifdef WIN32
+#define	ENOMEDIUM	123	/* No medium found */
+#define	ENOKEY		126	/* Required key not available */
+#endif
+
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -40,7 +45,8 @@ _public_ char *sd_id128_to_uuid_string(sd_id128_t id, char s[_SD_ARRAY_STATIC SD
 
         for (size_t n = 0; n < 16; n++) {
 
-                if (IN_SET(n, 4, 6, 8, 10))
+                //if (IN_SET(n, 4, 6, 8, 10))
+                if ((n == 4 || n == 6 || n == 8 || n == 10))
                         s[k++] = '-';
 
                 s[k++] = hexchar(id.bytes[n] >> 4);
@@ -69,7 +75,8 @@ _public_ int sd_id128_from_string(const char s[], sd_id128_t *ret) {
 
                         if (i == 8)
                                 is_guid = true;
-                        else if (IN_SET(i, 13, 18, 23)) {
+                        //else if (IN_SET(i, 13, 18, 23)) {
+                        else if ((i == 13 || i == 18 || i == 23)) {
                                 if (!is_guid)
                                         return -EINVAL;
                         } else
@@ -102,7 +109,7 @@ _public_ int sd_id128_from_string(const char s[], sd_id128_t *ret) {
 }
 
 _public_ int sd_id128_get_machine(sd_id128_t *ret) {
-        static thread_local sd_id128_t saved_machine_id = {};
+        static thread_local sd_id128_t saved_machine_id;// = {};
         int r;
 
         assert_return(ret, -EINVAL);
@@ -121,7 +128,7 @@ _public_ int sd_id128_get_machine(sd_id128_t *ret) {
 }
 
 _public_ int sd_id128_get_boot(sd_id128_t *ret) {
-        static thread_local sd_id128_t saved_boot_id = {};
+        static thread_local sd_id128_t saved_boot_id;   // = {};
         int r;
 
         assert_return(ret, -EINVAL);
@@ -154,7 +161,8 @@ static int get_invocation_from_keyring(sd_id128_t *ret) {
         key = request_key("user", "invocation_id", NULL, 0);
         if (key == -1) {
                 /* Keyring support not available? No invocation key stored? */
-                if (IN_SET(errno, ENOSYS, ENOKEY))
+                //if (IN_SET(errno, ENOSYS, ENOKEY))
+                if ((errno == ENOSYS || errno == ENOKEY))
                         return -ENXIO;
 
                 return -errno;
@@ -247,7 +255,7 @@ static int get_invocation_from_environment(sd_id128_t *ret) {
 }
 
 _public_ int sd_id128_get_invocation(sd_id128_t *ret) {
-        static thread_local sd_id128_t saved_invocation_id = {};
+        static thread_local sd_id128_t saved_invocation_id;// = {};
         int r;
 
         assert_return(ret, -EINVAL);
