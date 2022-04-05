@@ -182,8 +182,27 @@ add_executable (busobj
 	"busobj.c"
 )
 
+add_executable (sd-event-udp
+	"sd-event-udp.c"
+)
+
+add_executable (bus-client "bus-client.c")
+add_executable (bus-service "bus-service.c")
+
 target_link_libraries(busobj libsystemd)
 target_link_libraries(busobj pthread cap rt)
+
+target_include_directories(sd-event-udp PRIVATE "systemd/src/")
+target_link_libraries(sd-event-udp libsystemd)
+target_link_libraries(sd-event-udp pthread cap rt)
+
+target_include_directories(bus-client PRIVATE "systemd/src/")
+target_link_libraries(bus-client libsystemd)
+target_link_libraries(bus-client pthread cap rt)
+
+target_include_directories(bus-service PRIVATE "systemd/src/")
+target_link_libraries(bus-service libsystemd)
+target_link_libraries(bus-service pthread cap rt)
 
 endif()
 

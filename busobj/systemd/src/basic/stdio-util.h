@@ -19,7 +19,7 @@
                 _snpf >= 0 && (size_t) _snpf < _len ? _buf : NULL;     \
         })
 
-inline char* __snprintf_ok(char *buf, size_t len, const char *fmt, ...)                                
+static inline char* __snprintf_ok(char *buf, size_t len, const char *fmt, ...)                                
 {
         char* _buf = (buf);                                    
         size_t _len = (len);                                   
