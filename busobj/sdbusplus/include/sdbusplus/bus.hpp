@@ -449,6 +449,12 @@ struct bus
 
     friend struct details::bus_friend;
 
+    // expose sd_bus
+    busp_t get_bus()
+    {
+        return _bus.get();
+    }
+
   protected:
     busp_t get() noexcept
     {

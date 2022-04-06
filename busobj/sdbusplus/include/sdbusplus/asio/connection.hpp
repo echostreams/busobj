@@ -54,13 +54,17 @@ class connection : public sdbusplus::bus_t
     connection(boost::asio::io_context& io) :
         sdbusplus::bus_t(sdbusplus::bus::new_default()), io_(io), socket(io_)
     {
+#if defined(__linux__)
         //socket.assign(get_fd());
+#endif
         read_wait();
     }
     connection(boost::asio::io_context& io, sd_bus* bus) :
         sdbusplus::bus_t(bus), io_(io), socket(io_)
     {
+#if defined(__linux__)
         //socket.assign(get_fd());
+#endif
         read_wait();
     }
     ~connection()

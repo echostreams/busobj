@@ -15,7 +15,7 @@
 #include <iostream>
 #include <string_view>
 
-
+#include <systemd/sd-bus.h>
 
 
 AssociationMaps associationMaps;
@@ -28,180 +28,211 @@ static WhiteBlackList service_blacklist;
 template <class InputIt1, class InputIt2>
 bool intersect(InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2)
 {
-    while (first1 != last1 && first2 != last2)
-    {
-        if (*first1 < *first2)
-        {
-            ++first1;
-            continue;
-        }
-        if (*first2 < *first1)
-        {
-            ++first2;
-            continue;
-        }
-        return true;
-    }
-    return false;
+	while (first1 != last1 && first2 != last2)
+	{
+		if (*first1 < *first2)
+		{
+			++first1;
+			continue;
+		}
+		if (*first2 < *first1)
+		{
+			++first2;
+			continue;
+		}
+		return true;
+	}
+	return false;
 }
 
 void doListNames(
-    boost::asio::io_context& io, interface_map_type& interface_map,
-    sdbusplus::asio::connection* system_bus,
-    boost::container::flat_map<std::string, std::string>& name_owners,
-    AssociationMaps& assocMaps, sdbusplus::asio::object_server& objectServer)
+	boost::asio::io_context& io, interface_map_type& interface_map,
+	sdbusplus::asio::connection* system_bus,
+	boost::container::flat_map<std::string, std::string>& name_owners,
+	AssociationMaps& assocMaps, sdbusplus::asio::object_server& objectServer)
 {
-    system_bus->async_method_call(
-        [&io, &interface_map, &name_owners, &objectServer, system_bus,
-        &assocMaps](const boost::system::error_code ec,
-            std::vector<std::string> process_names) {
-                if (ec)
-                {
-                    std::cerr << "Error getting names: " << ec << "\n";
-                    std::exit(EXIT_FAILURE);
-                    return;
-                }
-                // Try to make startup consistent
-                std::sort(process_names.begin(), process_names.end());
+	system_bus->async_method_call(
+		[&io, &interface_map, &name_owners, &objectServer, system_bus,
+		&assocMaps](const boost::system::error_code ec,
+			std::vector<std::string> process_names) {
+				if (ec)
+				{
+					std::cerr << "Error getting names: " << ec << "\n";
+					std::exit(EXIT_FAILURE);
+					return;
+				}
+				// Try to make startup consistent
+				std::sort(process_names.begin(), process_names.end());
 #ifdef DEBUG
-                std::shared_ptr<std::chrono::time_point<std::chrono::steady_clock>>
-                    global_start_time = std::make_shared<
-                    std::chrono::time_point<std::chrono::steady_clock>>(
-                        std::chrono::steady_clock::now());
+				std::shared_ptr<std::chrono::time_point<std::chrono::steady_clock>>
+					global_start_time = std::make_shared<
+					std::chrono::time_point<std::chrono::steady_clock>>(
+						std::chrono::steady_clock::now());
 #endif
-                for (const std::string& process_name : process_names)
-                {
-                    std::cout << "process_name: " << process_name.c_str() << std::endl;
-                    /*
-                    if (needToIntrospect(process_name, service_whitelist,
-                        service_blacklist))
-                    {
-                        start_new_introspect(system_bus, io, interface_map,
-                            process_name, assocMaps,
+				for (const std::string& process_name : process_names)
+				{
+					std::cout << "process_name: " << process_name.c_str() << std::endl;
+					/*
+					if (needToIntrospect(process_name, service_whitelist,
+						service_blacklist))
+					{
+						start_new_introspect(system_bus, io, interface_map,
+							process_name, assocMaps,
 #ifdef DEBUG
-                            global_start_time,
+							global_start_time,
 #endif
-                            objectServer);
-                        update_owners(system_bus, name_owners, process_name);
-                    }
-                    */
-                }
-        },
-        "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
-            "ListNames");
+							objectServer);
+						update_owners(system_bus, name_owners, process_name);
+					}
+					*/
+				}
+		},
+		"org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
+			"ListNames");
 }
 
 boost::container::flat_map<std::string, boost::container::flat_set<std::string>>
 getObject(const interface_map_type& interface_map, const std::string& path,
-    std::vector<std::string>& interfaces)
+	std::vector<std::string>& interfaces)
 {
-    boost::container::flat_map<std::string,
-        boost::container::flat_set<std::string>>
-        results;
+	boost::container::flat_map<std::string,
+		boost::container::flat_set<std::string>>
+		results;
 
-    // Interfaces need to be sorted for intersect to function
-    std::sort(interfaces.begin(), interfaces.end());
-    auto path_ref = interface_map.find(path);
-    if (path_ref == interface_map.end())
-    {
-        throw std::exception("Resource Not Found");
-        // sdbusplus::xyz::openbmc_project::Common::Error::ResourceNotFound();
-    }
-    if (interfaces.empty())
-    {
-        return path_ref->second;
-    }
-    for (auto& interface_map : path_ref->second)
-    {
-        if (intersect(interfaces.begin(), interfaces.end(),
-            interface_map.second.begin(), interface_map.second.end()))
-        {
-            results.emplace(interface_map.first, interface_map.second);
-        }
-    }
+	// Interfaces need to be sorted for intersect to function
+	std::sort(interfaces.begin(), interfaces.end());
+	auto path_ref = interface_map.find(path);
+	if (path_ref == interface_map.end())
+	{
+		throw std::out_of_range("Resource Not Found");// std::exception("Resource Not Found");
+		// sdbusplus::xyz::openbmc_project::Common::Error::ResourceNotFound();
+	}
+	if (interfaces.empty())
+	{
+		return path_ref->second;
+	}
+	for (auto& interface_map : path_ref->second)
+	{
+		if (intersect(interfaces.begin(), interfaces.end(),
+			interface_map.second.begin(), interface_map.second.end()))
+		{
+			results.emplace(interface_map.first, interface_map.second);
+		}
+	}
 
-    if (results.empty())
-    {
-        //throw sdbusplus::xyz::openbmc_project::Common::Error::ResourceNotFound();
-        throw std::exception("Resource Not Found");
-    }
+	if (results.empty())
+	{
+		//throw sdbusplus::xyz::openbmc_project::Common::Error::ResourceNotFound();
+		throw std::out_of_range("Resource Not Found");// std::exception("Resource Not Found");
+	}
 
-    return results;
+	return results;
 }
 
 ///////
-int sd_bus_list_names(sd_bus* bus, char*** acquired, char*** activatable){
-    return 0;
-}
-int sd_bus_request_name(sd_bus* bus, const char* name,
-    uint64_t flags) {
-    return 0;
-}
 char fake_unique_name[] = "1:0";
 
-int sd_bus_get_unique_name(sd_bus* bus, const char** unique) { 
-    *unique = fake_unique_name;
-    return 0; }
+int sd_bus_list_names(sd_bus* bus, char*** acquired, char*** activatable)
+{
+	return 0;
+}
+
+int sd_bus_request_name(sd_bus* bus, const char* name,
+	uint64_t flags) {
+	return 0;
+}
+
+int sd_bus_get_unique_name(sd_bus* bus, const char** unique) {
+	*unique = fake_unique_name;
+	return 0;
+}
+
 sd_event* sd_bus_get_event(sd_bus* bus) { return NULL; }
 int sd_bus_attach_event(sd_bus* bus, sd_event* e, int priority) { return 0; }
 int sd_bus_detach_event(sd_bus* bus) { return 0; }
 sd_bus* sd_bus_flush_close_unref(sd_bus* bus) { return NULL; }
 int sd_bus_flush(sd_bus* bus) { return 0; }
 int sd_bus_wait(sd_bus* bus, uint64_t timeout_usec) { return 0; }
-int sd_bus_get_fd(sd_bus* bus) { return -1; }
+int sd_bus_get_fd(sd_bus* bus) { return 100; }
 int sd_bus_process(sd_bus* bus, sd_bus_message** r) { return 0; }
 void sd_bus_close(sd_bus* bus) {}
-int sd_bus_default(sd_bus** ret) { 
-    sd_bus_new(ret);
-    return 0; 
+int sd_bus_default(sd_bus** ret) {
+	sd_bus_new(ret);
+	return 0;
 }
 //////
 
+extern "C" int bus_process_object(sd_bus * bus, sd_bus_message * m);
+extern "C" void bus_set_state(sd_bus * bus, /*enum bus_state*/int state);
+extern "C" void bus_message_set_sender_local(sd_bus * bus, sd_bus_message * m);
+extern "C" void bus_iteration_counter_increase(sd_bus * bus);
 
 int main(int argc, char** argv)
 {
-    boost::asio::io_context io;
-    
-    std::shared_ptr<sdbusplus::asio::connection> system_bus =
-        std::make_shared<sdbusplus::asio::connection>(io);
+	boost::asio::io_context io;
 
-    sdbusplus::asio::object_server server(system_bus);
+	std::shared_ptr<sdbusplus::asio::connection> system_bus =
+		std::make_shared<sdbusplus::asio::connection>(io);
 
-    // Construct a signal set registered for process termination.
-    boost::asio::signal_set signals(io, SIGINT, SIGTERM);
-    signals.async_wait(
-        [&io](const boost::system::error_code&, int) {
+	sdbusplus::asio::object_server server(system_bus);
 
-            std::cout << "io stop..." << std::endl;
+	// Construct a signal set registered for process termination.
+	boost::asio::signal_set signals(io, SIGINT, SIGTERM);
+	signals.async_wait(
+		[&io](const boost::system::error_code&, int) {
 
-            io.stop();
+			std::cout << "io stop..." << std::endl;
 
-        });
+			io.stop();
 
-    interface_map_type interface_map;
-    boost::container::flat_map<std::string, std::string> name_owners;
+		});
 
-    std::shared_ptr<sdbusplus::asio::dbus_interface> iface =
-        server.add_interface("/xyz/openbmc_project/object_mapper",
-            "xyz.openbmc_project.ObjectMapper");
-    
-    iface->register_method(
-        "GetObject", [&interface_map](const std::string& path,
-            std::vector<std::string>& interfaces) {
-                return getObject(interface_map, path, interfaces);
-        });
-    
+	interface_map_type interface_map;
+	boost::container::flat_map<std::string, std::string> name_owners;
 
-    iface->initialize();
+	std::shared_ptr<sdbusplus::asio::dbus_interface> iface =
+		server.add_interface("/xyz/openbmc_project/object_mapper",
+			"xyz.openbmc_project.ObjectMapper");
 
-    io.post([&]() {
-        doListNames(io, interface_map, system_bus.get(), name_owners,
-            associationMaps, server);
-        });
+	iface->register_method(
+		"GetObject", [&interface_map](const std::string& path,
+			std::vector<std::string>& interfaces) {
+				return getObject(interface_map, path, interfaces);
+		});
 
-    system_bus->request_name("xyz.openbmc_project.ObjectMapper");
 
-    io.run();
+	iface->initialize();
 
-    return 0;
+	io.post([&]() {
+		doListNames(io, interface_map, system_bus.get(), name_owners,
+			associationMaps, server);
+		});
+	
+	system_bus->request_name("xyz.openbmc_project.ObjectMapper");
+
+	
+	// manually test
+	sdbusplus::bus::busp_t bus = system_bus->get_bus();
+	bus_set_state(bus, /*BUS_OPENING*/2);
+
+	sdbusplus::message_t m = system_bus.get()->new_method_call(
+		"xyz.openbmc_project.ObjectMapper",
+		"/xyz/openbmc_project/object_mapper",
+		"xyz.openbmc_project.ObjectMapper", "GetObject");
+	
+	m.append("/", std::array<std::string, 0>());
+	
+	bus_iteration_counter_increase(bus);
+	bus_message_set_sender_local(bus, m.get());
+	sd_bus_message_seal(m.get(), 0xFFFFFFFFULL, 0);
+
+	try {
+		bus_process_object(bus, m.get());
+	}
+	catch (std::exception& e) {
+		printf("Exception: %s\n", e.what());
+	}
+	io.run();
+
+	return 0;
 }

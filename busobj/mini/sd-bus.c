@@ -198,7 +198,7 @@ bool bus_pid_changed(sd_bus* bus) {
 _public_ int sd_bus_send(sd_bus* bus, sd_bus_message* _m, uint64_t* cookie) {
     // TODO...................
     printf("sd_bus_send: %s\n", _m->destination);
-    return 0;
+    return 1;
 }
 
 sd_bus* bus_resolve(sd_bus* bus) {
@@ -478,13 +478,16 @@ _public_ uint64_t sd_bus_creds_get_augmented_mask(const sd_bus_creds* c) {
 }
 
 _public_ int sd_bus_creds_has_effective_cap(sd_bus_creds* c, int capability) {
+    /*
     assert_return(c, -EINVAL);
     assert_return(capability >= 0, -EINVAL);
 
     if (!(c->mask & SD_BUS_CREDS_EFFECTIVE_CAPS))
         return -ENODATA;
 
-    return 0;// has_cap(c, CAP_OFFSET_EFFECTIVE, capability);
+    return has_cap(c, CAP_OFFSET_EFFECTIVE, capability);
+    */
+    return 1;
 }
 
 _public_ int sd_bus_get_owner_creds(sd_bus* bus, uint64_t mask, sd_bus_creds** ret) {
@@ -990,6 +993,8 @@ _public_ int sd_bus_wait(sd_bus* bus, uint64_t timeout_usec) {
     return bus_poll(bus, false, timeout_usec);
 }
 
+#endif
+
 void bus_set_state(sd_bus* bus, enum bus_state state) {
     static const char* const table[_BUS_STATE_MAX] = {
             [BUS_UNSET] = "UNSET",
@@ -1023,4 +1028,7 @@ void bus_enter_closing(sd_bus* bus) {
     bus_set_state(bus, BUS_CLOSING);
 }
 
-#endif
+void bus_iteration_counter_increase(sd_bus* bus)
+{
+    bus->iteration_counter++;
+}

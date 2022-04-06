@@ -201,7 +201,7 @@ target_link_libraries(bus-client libsystemd)
 target_link_libraries(bus-client pthread cap rt)
 
 target_include_directories(bus-service PRIVATE "systemd/src/")
-target_link_libraries(bus-service libsystemd-mini)
+target_link_libraries(bus-service libsystemd)
 target_link_libraries(bus-service pthread cap rt)
 
 endif()
