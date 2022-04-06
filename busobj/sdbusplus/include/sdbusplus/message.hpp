@@ -394,7 +394,7 @@ class message : private sdbusplus::slot::details::slot_friend
      */
     auto call(std::optional<SdBusDuration> timeout = std::nullopt)
     {
-        sd_bus_error error = SD_BUS_ERROR_NULL;
+        sd_bus_error error = {NULL, NULL, 0};//SD_BUS_ERROR_NULL;
         sd_bus_message* reply = nullptr;
         auto timeout_us = timeout ? timeout->count() : 0;
         int r = _intf->sd_bus_call(nullptr, get(), timeout_us, &error, &reply);

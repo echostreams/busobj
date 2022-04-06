@@ -321,6 +321,13 @@ message(STATUS "-- Boost_LIBRARIES: ${Boost_LIBRARIES}")
 include_directories (SYSTEM ${Boost_INCLUDE_DIR})
 include_directories ("sdbusplus/include")
 include_directories ("systemd/src")
-add_executable(objmgr objmgr.cpp)
+add_executable(objmgr objmgr.cpp
+	"sdbusplus/src/sdbus.cpp"
+	"sdbusplus/src/bus.cpp"
+	"sdbusplus/src/exception.cpp"
+	"sdbusplus/src/server/interface.cpp"
+	"sdbusplus/src/server/transaction.cpp"
+	"sdbusplus/src/message/native_types.cpp"
+)
 target_compile_features(objmgr PRIVATE cxx_std_20)
-target_link_libraries(objmgr ${Boost_LIBRARIES} Boost::thread)
+target_link_libraries(objmgr ${Boost_LIBRARIES} Boost::thread libsystemd-mini)

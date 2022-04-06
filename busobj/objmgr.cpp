@@ -129,6 +129,33 @@ getObject(const interface_map_type& interface_map, const std::string& path,
     return results;
 }
 
+///////
+int sd_bus_list_names(sd_bus* bus, char*** acquired, char*** activatable){
+    return 0;
+}
+int sd_bus_request_name(sd_bus* bus, const char* name,
+    uint64_t flags) {
+    return 0;
+}
+char fake_unique_name[] = "1:0";
+
+int sd_bus_get_unique_name(sd_bus* bus, const char** unique) { 
+    *unique = fake_unique_name;
+    return 0; }
+sd_event* sd_bus_get_event(sd_bus* bus) { return NULL; }
+int sd_bus_attach_event(sd_bus* bus, sd_event* e, int priority) { return 0; }
+int sd_bus_detach_event(sd_bus* bus) { return 0; }
+sd_bus* sd_bus_flush_close_unref(sd_bus* bus) { return NULL; }
+int sd_bus_flush(sd_bus* bus) { return 0; }
+int sd_bus_wait(sd_bus* bus, uint64_t timeout_usec) { return 0; }
+int sd_bus_get_fd(sd_bus* bus) { return -1; }
+int sd_bus_process(sd_bus* bus, sd_bus_message** r) { return 0; }
+void sd_bus_close(sd_bus* bus) {}
+int sd_bus_default(sd_bus** ret) { 
+    sd_bus_new(ret);
+    return 0; 
+}
+//////
 
 
 int main(int argc, char** argv)
@@ -157,12 +184,13 @@ int main(int argc, char** argv)
     std::shared_ptr<sdbusplus::asio::dbus_interface> iface =
         server.add_interface("/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper");
-
+    
     iface->register_method(
         "GetObject", [&interface_map](const std::string& path,
             std::vector<std::string>& interfaces) {
                 return getObject(interface_map, path, interfaces);
         });
+    
 
     iface->initialize();
 

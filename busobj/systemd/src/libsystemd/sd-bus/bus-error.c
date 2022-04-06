@@ -423,7 +423,12 @@ static void bus_error_strerror(sd_bus_error *e, int error) {
                         return;
 
                 errno = 0;
+#ifdef WIN32
+                strerror_s(m, k, errno);
+                x = m;
+#else
                 x = strerror_r(error, m, k);
+#endif
                 if (errno == ERANGE || strlen(x) >= k - 1) {
                         free(m);
                         k *= 2;

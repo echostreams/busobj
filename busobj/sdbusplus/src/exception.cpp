@@ -23,7 +23,7 @@ int generated_exception::get_errno() const noexcept
 }
 
 SdBusError::SdBusError(int error, const char* prefix, SdBusInterface* intf) :
-    error(SD_BUS_ERROR_NULL), intf(intf)
+    error(/*SD_BUS_ERROR_NULL*/ {NULL,NULL,0}), intf(intf)
 {
     // We can't check the output of intf->sd_bus_error_set_errno() because
     // it returns the input errorcode. We don't want to try and guess
@@ -44,12 +44,13 @@ SdBusError::SdBusError(sd_bus_error* error, const char* prefix,
     intf(intf)
 {
     // We own the error so remove the caller's reference
-    *error = SD_BUS_ERROR_NULL;
+    *error = {NULL, NULL, 0};//SD_BUS_ERROR_NULL;
 
     populateMessage(prefix);
 }
 
-SdBusError::SdBusError(SdBusError&& other) : error(SD_BUS_ERROR_NULL)
+SdBusError::SdBusError(SdBusError&& other) :
+    error(/*SD_BUS_ERROR_NULL*/ {NULL, NULL, 0})
 {
     move(std::move(other));
 }
@@ -114,7 +115,7 @@ void SdBusError::move(SdBusError&& other)
 
     intf->sd_bus_error_free(&error);
     error = other.error;
-    other.error = SD_BUS_ERROR_NULL;
+    other.error = {NULL, NULL, 0}; //SD_BUS_ERROR_NULL;
 
     full_message = std::move(other.full_message);
 }

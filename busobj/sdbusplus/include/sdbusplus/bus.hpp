@@ -268,7 +268,7 @@ struct bus
      */
     auto call(message_t& m, uint64_t timeout_us)
     {
-        sd_bus_error error = SD_BUS_ERROR_NULL;
+        sd_bus_error error = {NULL, NULL, 0}; // SD_BUS_ERROR_NULL;
         sd_bus_message* reply = nullptr;
         int r =
             _intf->sd_bus_call(_bus.get(), m.get(), timeout_us, &error, &reply);
@@ -291,7 +291,7 @@ struct bus
      */
     void call_noreply(message_t& m, uint64_t timeout_us)
     {
-        sd_bus_error error = SD_BUS_ERROR_NULL;
+        sd_bus_error error = {NULL, NULL, 0}; // SD_BUS_ERROR_NULL;
         int r = _intf->sd_bus_call(_bus.get(), m.get(), timeout_us, &error,
                                    nullptr);
         if (r < 0)
