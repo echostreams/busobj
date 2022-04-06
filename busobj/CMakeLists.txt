@@ -51,9 +51,9 @@ endif()
 
 add_definitions(-DRELATIVE_SOURCE_PATH="systemd/src")
 add_definitions(-DGETTEXT_PACKAGE="\\\"systemd\\\"")
-add_definitions(-DNOBODY_USER_NAME="\\\"nobody\\\"")
+add_definitions(-DNOBODY_USER_NAME="nobody")
 add_definitions(-DNOBODY_GROUP_NAME="\\\"nogroup\\\"")
-add_definitions(-DNOLOGIN="\\\"/usr/sbin/nologin\\\"")
+add_definitions(-DNOLOGIN="/usr/sbin/nologin")
 add_definitions(-DFALLBACK_HOSTNAME="\\\"buildroot\\\"")
 add_definitions(-DDEFAULT_HIERARCHY_NAME="\\\"hybrid\\\"")
 add_definitions(-DSYSTEMD_TEST_DATA="./testdata")
@@ -201,7 +201,7 @@ target_link_libraries(bus-client libsystemd)
 target_link_libraries(bus-client pthread cap rt)
 
 target_include_directories(bus-service PRIVATE "systemd/src/")
-target_link_libraries(bus-service libsystemd)
+target_link_libraries(bus-service libsystemd-mini)
 target_link_libraries(bus-service pthread cap rt)
 
 endif()
@@ -222,6 +222,8 @@ add_library(libsystemd-mini
 	#"systemd/src/libsystemd/sd-bus/sd-bus.c"
 	"systemd/src/libsystemd/sd-bus/bus-dump.c"
 	#"systemd/src/libsystemd/sd-bus/bus-socket.c"
+	#"systemd/src/libsystemd/sd-bus/bus-creds.c"
+	"systemd/src/libsystemd/sd-bus/bus-track.c"
 
 	"mini/bus-message.c"
 	"mini/sd-bus.c"
@@ -296,3 +298,29 @@ else()
 	target_link_libraries(test-bus-marshal pthread rt)
 endif()
 
+if(WIN32)
+	if(EXISTS "c:/lib/boost_1_78_0")
+		set(BOOST_ROOT "c:/lib/boost_1_78_0")
+	elseif(EXISTS "d:/lib/boost_1_78_0")
+		set(BOOST_ROOT "d:/lib/boost_1_78_0")
+	endif()
+	set(BOOST_INCLUDEDIR ${BOOST_ROOT})
+	set(BOOST_LIBRARYDIR ${BOOST_ROOT}/stage/lib)
+	set(Boost_COMPILER "-vc142;-vc143")
+	set(Boost_ADDITIONAL_VERSIONS "1.78.0")
+	set(Boost_USE_STATIC_LIBS ON)
+	set(Boost_USE_MULTITHREAD ON)
+	set(Boost_USE_STATIC_RUNTIME OFF)
+
+endif()
+
+find_package (Boost 1.71 REQUIRED COMPONENTS thread chrono coroutine context)
+message(STATUS "--Boost_INCLUDE_DIR : ${Boost_INCLUDE_DIR}")
+message(STATUS "-- Boost_LIBRARIES: ${Boost_LIBRARIES}")
+
+include_directories (SYSTEM ${Boost_INCLUDE_DIR})
+include_directories ("sdbusplus/include")
+include_directories ("systemd/src")
+add_executable(objmgr objmgr.cpp)
+target_compile_features(objmgr PRIVATE cxx_std_20)
+target_link_libraries(objmgr ${Boost_LIBRARIES} Boost::thread)

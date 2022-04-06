@@ -2,7 +2,9 @@
 
 #include <errno.h>
 #include <limits.h>
+#if defined (__linux__)
 #include <mqueue.h>
+#endif
 #include <netinet/in.h>
 #include <poll.h>
 #include <stdarg.h>
@@ -124,7 +126,9 @@ _public_ int sd_listen_fds_with_names(int unset_environment, char ***names) {
                         return r;
         }
 
-        *names = TAKE_PTR(l);
+        //*names = TAKE_PTR(l);
+        *names = l;
+        l = NULL;
 
         return n_fds;
 }
@@ -145,7 +149,8 @@ _public_ int sd_is_fifo(int fd, const char *path) {
 
                 if (stat(path, &st_path) < 0) {
 
-                        if (IN_SET(errno, ENOENT, ENOTDIR))
+                        //if (IN_SET(errno, ENOENT, ENOTDIR))
+                        if ((errno == ENOENT || errno == ENOTDIR))
                                 return 0;
 
                         return -errno;
@@ -173,7 +178,8 @@ _public_ int sd_is_special(int fd, const char *path) {
 
                 if (stat(path, &st_path) < 0) {
 
-                        if (IN_SET(errno, ENOENT, ENOTDIR))
+                        //if (IN_SET(errno, ENOENT, ENOTDIR))
+                        if ((errno == ENOENT || errno == ENOTDIR))
                                 return 0;
 
                         return -errno;
@@ -265,7 +271,8 @@ _public_ int sd_is_socket_inet(int fd, int family, int type, int listening, uint
         int r;
 
         assert_return(fd >= 0, -EBADF);
-        assert_return(IN_SET(family, 0, AF_INET, AF_INET6), -EINVAL);
+        //assert_return(IN_SET(family, 0, AF_INET, AF_INET6), -EINVAL);
+        assert_return((family == 0 || family == AF_INET || family == AF_INET6), -EINVAL);
 
         r = sd_is_socket_internal(fd, type, listening);
         if (r <= 0)
@@ -277,7 +284,8 @@ _public_ int sd_is_socket_inet(int fd, int family, int type, int listening, uint
         if (l < sizeof(sa_family_t))
                 return -EINVAL;
 
-        if (!IN_SET(sockaddr.sa.sa_family, AF_INET, AF_INET6))
+        //if (!IN_SET(sockaddr.sa.sa_family, AF_INET, AF_INET6))
+        if (!(sockaddr.sa.sa_family == AF_INET || sockaddr.sa.sa_family == AF_INET6))
                 return 0;
 
         if (family != 0)
@@ -305,7 +313,8 @@ _public_ int sd_is_socket_sockaddr(int fd, int type, const struct sockaddr* addr
         assert_return(fd >= 0, -EBADF);
         assert_return(addr, -EINVAL);
         assert_return(addr_len >= sizeof(sa_family_t), -ENOBUFS);
-        assert_return(IN_SET(addr->sa_family, AF_INET, AF_INET6), -EPFNOSUPPORT);
+        //assert_return(IN_SET(addr->sa_family, AF_INET, AF_INET6), -EPFNOSUPPORT);
+        assert_return((addr->sa_family == AF_INET || addr->sa_family == AF_INET6), -EPFNOSUPPORT);
 
         r = sd_is_socket_internal(fd, type, listening);
         if (r <= 0)

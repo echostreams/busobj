@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <sys/inotify.h>
 
+
 #define INOTIFY_EVENT_MAX (offsetof(struct inotify_event, name) + NAME_MAX + 1)
 
 #define FOREACH_INOTIFY_EVENT(e, buffer, sz) \
