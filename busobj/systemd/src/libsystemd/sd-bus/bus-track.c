@@ -7,6 +7,10 @@
 #include "bus-track.h"
 #include "string-util.h"
 
+#ifdef WIN32
+#define	EUNATCH		49	/* Protocol driver not attached */
+#endif
+
 struct track_item {
         unsigned n_ref;
         char *name;
@@ -31,6 +35,7 @@ struct sd_bus_track {
         LIST_FIELDS(sd_bus_track, tracks);
 };
 
+/*
 #define MATCH_FOR_NAME(name)                            \
         strjoina("type='signal',"                       \
                  "sender='org.freedesktop.DBus',"       \
@@ -38,6 +43,15 @@ struct sd_bus_track {
                  "interface='org.freedesktop.DBus',"    \
                  "member='NameOwnerChanged',"           \
                  "arg0='", name, "'")
+*/
+#define MATCH_FOR_NAME(name)                            \
+        strjoin("type='signal',"                        \
+                 "sender='org.freedesktop.DBus',"       \
+                 "path='/org/freedesktop/DBus',"        \
+                 "interface='org.freedesktop.DBus',"    \
+                 "member='NameOwnerChanged',"           \
+                 "arg0='", name, "'")
+
 
 static struct track_item* track_item_free(struct track_item *i) {
 
@@ -46,7 +60,9 @@ static struct track_item* track_item_free(struct track_item *i) {
 
         sd_bus_slot_unref(i->slot);
         free(i->name);
-        return mfree(i);
+        //return mfree(i);
+        free(i);
+        return NULL;
 }
 
 DEFINE_TRIVIAL_CLEANUP_FUNC(struct track_item*, track_item_free);
@@ -158,7 +174,9 @@ static sd_bus_track *track_free(sd_bus_track *track) {
         if (track->destroy_callback)
                 track->destroy_callback(track->userdata);
 
-        return mfree(track);
+        //return mfree(track);
+        free(track);
+        return NULL;
 }
 
 DEFINE_PUBLIC_TRIVIAL_REF_UNREF_FUNC(sd_bus_track, sd_bus_track, track_free);

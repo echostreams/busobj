@@ -439,7 +439,11 @@ int sd_bus_creds_get_description(sd_bus_creds *c, const char **name);
 
 /* Error structures */
 
+#ifdef WIN32
+#define SD_BUS_ERROR_MAKE_CONST(name, message) {(name), (message), 0}
+#else
 #define SD_BUS_ERROR_MAKE_CONST(name, message) ((const sd_bus_error) {(name), (message), 0})
+#endif
 #define SD_BUS_ERROR_NULL SD_BUS_ERROR_MAKE_CONST(NULL, NULL)
 
 void sd_bus_error_free(sd_bus_error *e);

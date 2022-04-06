@@ -39,7 +39,7 @@ static int happy_finder(sd_bus* bus, const char* path, const char* interface, vo
     assert(userdata == &c);
 
 #ifndef __cplusplus
-    log_info("%s called\n", __func__);
+    log_info("%s called, count: %d, path %s, interface: %s\n", __func__, happy_finder_object, path, interface);
 #endif
 
     happy_finder_object++;

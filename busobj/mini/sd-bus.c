@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1-or-later */
+﻿/* SPDX-License-Identifier: LGPL-2.1-or-later */
 
 #include <endian.h>
 #include <netdb.h>
@@ -47,6 +47,10 @@
 #include "string-util.h"
 #include "strv.h"
 #include "user-util.h"
+
+#ifdef WIN32
+#define	ENOMEDIUM	123	/* No medium found */
+#endif
 
 static sd_bus* bus_free(sd_bus* b) {
     sd_bus_slot* s;
@@ -847,3 +851,176 @@ int bus_path_decode_unique(const char* path, const char* prefix, char** ret_send
     *ret_external = external;
     return 1;
 }
+
+#if 0
+
+int bus_set_address_user(sd_bus* b) {
+    const char* a;
+    _cleanup_free_ char* _a = NULL;
+    int r;
+
+    assert(b);
+
+    a = secure_getenv("DBUS_SESSION_BUS_ADDRESS");
+    if (!a) {
+        const char* e;
+        _cleanup_free_ char* ee = NULL;
+
+        e = secure_getenv("XDG_RUNTIME_DIR");
+        if (!e)
+            return log_debug_errno(SYNTHETIC_ERRNO(ENOMEDIUM),
+                "sd-bus: $XDG_RUNTIME_DIR not set, cannot connect to user bus.");
+
+        ee = bus_address_escape(e);
+        if (!ee)
+            return -ENOMEM;
+
+        if (asprintf(&_a, DEFAULT_USER_BUS_ADDRESS_FMT, ee) < 0)
+            return -ENOMEM;
+        a = _a;
+    }
+
+    r = sd_bus_set_address(b, a);
+    if (r >= 0)
+        b->is_user = true;
+    return r;
+}
+
+_public_ int sd_bus_open_user_with_description(sd_bus** ret, const char* description) {
+    _cleanup_(bus_freep) sd_bus* b = NULL;
+    int r;
+
+    assert_return(ret, -EINVAL);
+
+    r = sd_bus_new(&b);
+    if (r < 0)
+        return r;
+
+    if (description) {
+        r = sd_bus_set_description(b, description);
+        if (r < 0)
+            return r;
+    }
+
+    r = bus_set_address_user(b);
+    if (r < 0)
+        return r;
+
+    b->bus_client = true;
+
+    /* We don't do any per-method access control on the user bus. */
+    b->trusted = true;
+    b->is_local = true;
+
+    r = sd_bus_start(b);
+    if (r < 0)
+        return r;
+
+    //*ret = TAKE_PTR(b);
+    *ret = b;
+    b = NULL;
+    return 0;
+}
+
+_public_ int sd_bus_open_user(sd_bus** ret) {
+    return sd_bus_open_user_with_description(ret, NULL);
+}
+
+_public_ int sd_bus_set_description(sd_bus* bus, const char* description) {
+    assert_return(bus, -EINVAL);
+    assert_return(bus = bus_resolve(bus), -ENOPKG);
+    assert_return(bus->state == BUS_UNSET, -EPERM);
+    assert_return(!bus_pid_changed(bus), -ECHILD);
+
+    return free_and_strdup(&bus->description, description);
+}
+
+_public_ int sd_bus_set_address(sd_bus* bus, const char* address) {
+    assert_return(bus, -EINVAL);
+    assert_return(bus = bus_resolve(bus), -ENOPKG);
+    assert_return(bus->state == BUS_UNSET, -EPERM);
+    assert_return(address, -EINVAL);
+    assert_return(!bus_pid_changed(bus), -ECHILD);
+
+    return free_and_strdup(&bus->address, address);
+}
+
+int bus_ensure_running(sd_bus* bus) {
+    int r;
+
+    assert(bus);
+
+    if (bus->state == BUS_RUNNING)
+        return 1;
+
+    for (;;) {
+        //if (IN_SET(bus->state, BUS_UNSET, BUS_CLOSED, BUS_CLOSING))
+        if ((bus->state == BUS_UNSET || bus->state == BUS_CLOSED || bus->state == BUS_CLOSING))
+            return -ENOTCONN;
+
+        r = sd_bus_process(bus, NULL);
+        if (r < 0)
+            return r;
+        if (bus->state == BUS_RUNNING)
+            return 1;
+        if (r > 0)
+            continue;
+
+        r = sd_bus_wait(bus, UINT64_MAX);
+        if (r < 0)
+            return r;
+    }
+}
+
+_public_ int sd_bus_wait(sd_bus* bus, uint64_t timeout_usec) {
+
+    assert_return(bus, -EINVAL);
+    assert_return(bus = bus_resolve(bus), -ENOPKG);
+    assert_return(!bus_pid_changed(bus), -ECHILD);
+
+    if (bus->state == BUS_CLOSING)
+        return 0;
+
+    if (!BUS_IS_OPEN(bus->state))
+        return -ENOTCONN;
+
+    if (bus->rqueue_size > 0)
+        return 0;
+
+    return bus_poll(bus, false, timeout_usec);
+}
+
+void bus_set_state(sd_bus* bus, enum bus_state state) {
+    static const char* const table[_BUS_STATE_MAX] = {
+            [BUS_UNSET] = "UNSET",
+            [BUS_WATCH_BIND] = "WATCH_BIND",
+            [BUS_OPENING] = "OPENING",
+            [BUS_AUTHENTICATING] = "AUTHENTICATING",
+            [BUS_HELLO] = "HELLO",
+            [BUS_RUNNING] = "RUNNING",
+            [BUS_CLOSING] = "CLOSING",
+            [BUS_CLOSED] = "CLOSED",
+    };
+
+    assert(bus);
+    assert(state < _BUS_STATE_MAX);
+
+    if (state == bus->state)
+        return;
+
+    log_debug("Bus %s: changing state %s → %s", strna(bus->description), table[bus->state], table[state]);
+    bus->state = state;
+}
+
+void bus_enter_closing(sd_bus* bus) {
+    assert(bus);
+
+    //if (!IN_SET(bus->state, BUS_WATCH_BIND, BUS_OPENING, BUS_AUTHENTICATING, BUS_HELLO, BUS_RUNNING))
+    if (!(bus->state == BUS_WATCH_BIND || bus->state == BUS_OPENING ||
+        bus->state == BUS_AUTHENTICATING || bus->state == BUS_HELLO, BUS_RUNNING))
+        return;
+
+    bus_set_state(bus, BUS_CLOSING);
+}
+
+#endif
