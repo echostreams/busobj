@@ -906,8 +906,11 @@ int bus_socket_connect(sd_bus *b) {
                         log_debug("sd-bus: starting bus%s%s by connecting to %s...",
                                   b->description ? " " : "", strempty(b->description), strnull(pretty));
                 }
-
+#ifdef WIN32
+                b->input_fd = socket(b->sockaddr.sa.sa_family, SOCK_STREAM, 0);
+#else
                 b->input_fd = socket(b->sockaddr.sa.sa_family, SOCK_STREAM|SOCK_CLOEXEC|SOCK_NONBLOCK, 0);
+#endif
                 if (b->input_fd < 0)
                         return -errno;
 
