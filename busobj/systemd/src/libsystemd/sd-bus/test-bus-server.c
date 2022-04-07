@@ -172,6 +172,8 @@ static int test_one(bool client_negotiate_unix_fds, bool server_negotiate_unix_f
 
 int main(int argc, char *argv[]) {
         int r;
+        
+        log_set_max_level(LOG_DEBUG);
 
         r = test_one(true, true, false, false);
         assert_se(r >= 0);
