@@ -264,12 +264,19 @@ int main(int argc, char** argv)
 	bus_message_set_sender_local(bus, m.get());
 	sd_bus_message_seal(m.get(), 0xFFFFFFFFULL, 0);
 	bus_set_state(bus, /*BUS_RUNNING*/5);
-	//try {
-		bus_process_object(bus, m.get());
-	//}
-	//catch (std::exception& e) {
-	//	printf("Exception: %s\n", e.what());
-	//}
+	
+	bus_process_object(bus, m.get());
+	
+	m = system_bus.get()->new_method_call("xyz.openbmc_project.ObjectMapper",
+		"/", "org.freedesktop.DBus.Introspectable", "Introspect");
+
+	bus_iteration_counter_increase(bus);
+	bus_message_set_sender_local(bus, m.get());
+	sd_bus_message_seal(m.get(), 0xFFFFFFFFULL, 0);
+	bus_set_state(bus, /*BUS_RUNNING*/5);
+
+	bus_process_object(bus, m.get());
+
 	io.run();
 
 	return 0;

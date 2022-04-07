@@ -45,7 +45,7 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
         "CMAKE_TOOLCHAIN_FILE": {
-          "value": "c:/vcpkg/scripts/buildsystems/vcpkg.cmake",
+          "value": "d:/vcpkg/scripts/buildsystems/vcpkg.cmake",
           "type": "FILEPATH"
         },
         "VCPKG_TARGET_TRIPLET": "x64-windows"

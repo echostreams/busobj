@@ -318,6 +318,7 @@ static int bus_write_message(sd_bus* bus, sd_bus_message* m, size_t* idx) {
 
     //r = bus_socket_write_message(bus, m, idx);
     sd_bus_message_dump(m, NULL, SD_BUS_MESSAGE_DUMP_WITH_HEADER);
+    *idx = BUS_MESSAGE_SIZE(m); // update written size
     r = 1;
 
     if (r <= 0)
