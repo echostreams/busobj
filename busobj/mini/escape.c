@@ -111,7 +111,7 @@ int cescape_char(char c, char* buf) {
         break;
     }
 
-    return buf - buf_old;
+    return (int)(buf - buf_old);
 }
 
 char* cescape_length(const char* s, size_t n) {

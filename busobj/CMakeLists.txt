@@ -213,6 +213,8 @@ add_executable (sd-event-udp
 	"sd-event-udp.c"
 )
 
+add_executable (test-bus-server "systemd/src/libsystemd/sd-bus/test-bus-server.c")
+
 add_executable (bus-client "bus-client.c")
 add_executable (bus-service "bus-service.c")
 
@@ -230,6 +232,8 @@ target_link_libraries(bus-client pthread cap rt)
 target_include_directories(bus-service PRIVATE "systemd/src/")
 target_link_libraries(bus-service libsystemd)
 target_link_libraries(bus-service pthread cap rt)
+
+target_link_libraries(test-bus-server libsystemd pthread cap rt)
 
 endif()
 
@@ -356,6 +360,7 @@ add_executable(objmgr objmgr.cpp
 	"sdbusplus/src/server/transaction.cpp"
 	"sdbusplus/src/message/native_types.cpp"
 )
+target_compile_features(libsystemd-mini PRIVATE cxx_std_20)
 target_compile_features(objmgr PRIVATE cxx_std_20)
 if(MSVC)
 	target_compile_definitions(objmgr PRIVATE -D__EXCEPTIONS)

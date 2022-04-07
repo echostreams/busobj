@@ -545,7 +545,7 @@ static int invoke_property_set(
                 const char *p;
                 char *n;
 
-                r = sd_bus_message_read_basic(value, v->x.property.signature[0], &p);
+                r = sd_bus_message_read_basic(value, v->x.property.signature[0], (void*)&p);
                 if (r < 0)
                         return r;
 
@@ -1485,8 +1485,8 @@ int bus_process_object(sd_bus *bus, sd_bus_message *m) {
                 const char *interface = NULL, *property = NULL;
 
                 (void) sd_bus_message_rewind(m, true);
-                (void) sd_bus_message_read_basic(m, 's', &interface);
-                (void) sd_bus_message_read_basic(m, 's', &property);
+                (void) sd_bus_message_read_basic(m, 's', (void*)(&interface));
+                (void) sd_bus_message_read_basic(m, 's', (void*)(&property));
 
                 r = sd_bus_reply_method_errorf(
                                 m,
@@ -1807,7 +1807,7 @@ static int vtable_features(const sd_bus_vtable *vtable) {
         if (vtable[0].x.start.element_size < VTABLE_ELEMENT_SIZE_242 ||
             !vtable[0].x.start.vtable_format_reference)
                 return 0;
-        return vtable[0].x.start.features;
+        return (int)vtable[0].x.start.features;
 }
 
 bool bus_vtable_has_names(const sd_bus_vtable *vtable) {

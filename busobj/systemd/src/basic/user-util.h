@@ -76,6 +76,7 @@ int take_etc_passwd_lock(const char *root);
 #ifdef WIN32
 #define F_OK 0 /* test for existence of file */
 #include <io.h>
+#define access  _access
 #endif
 
 static inline bool userns_supported(void) {

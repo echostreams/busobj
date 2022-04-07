@@ -14,7 +14,8 @@ typedef struct RateLimit {
 } RateLimit;
 
 static inline void ratelimit_reset(RateLimit *rl) {
-        rl->num = rl->begin = 0;
+    rl->num = 0;
+    rl->begin = 0;
 }
 
 static inline bool ratelimit_configured(RateLimit *rl) {

@@ -47,15 +47,18 @@ LocaleVariable locale_variable_from_string(const char *s) _pure_;
 #if defined(_MSC_VER)
 #include <BaseTsd.h>
 typedef SSIZE_T ssize_t;
-typedef int locale_t;
+typedef _locale_t locale_t;
 #endif
 
 
 static inline void freelocalep(locale_t *p) {
         if (*p == (locale_t) 0)
                 return;
-
+#ifdef WIN32
+        _free_locale(*p);
+#else
         freelocale(*p);
+#endif
 }
 
 void locale_variables_free(char* l[_VARIABLE_LC_MAX]);

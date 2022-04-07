@@ -117,7 +117,7 @@ int path_find_first_component(const char** p, bool accept_dot_dot, const char** 
     *p = next + streq(next, ".");
     if (ret)
         *ret = first;
-    return len;
+    return (int)len;
 }
 
 char* path_startswith_full(const char* path, const char* prefix, bool accept_dot_dot) {

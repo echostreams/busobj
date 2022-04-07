@@ -3,6 +3,8 @@
 #include <Windows.h>
 #include <tchar.h>
 #include <io.h>
+#define close    _close
+#define strdup   _strdup
 #else
 #include <fcntl.h>
 #include <stdio_ext.h>

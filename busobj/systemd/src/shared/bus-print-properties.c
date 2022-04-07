@@ -64,7 +64,7 @@ static int bus_print_property(const char *name, const char *expected_value, sd_b
         case SD_BUS_TYPE_STRING: {
                 const char *s;
 
-                r = sd_bus_message_read_basic(m, type, &s);
+                r = sd_bus_message_read_basic(m, type, (void*)&s);
                 if (r < 0)
                         return r;
 

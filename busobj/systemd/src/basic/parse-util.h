@@ -122,8 +122,13 @@ static inline int safe_atozu(const char *s, size_t *ret_u) {
 }
 #else
 static inline int safe_atozu(const char *s, size_t *ret_u) {
-        //assert_cc(sizeof(size_t) == sizeof(unsigned long));
+#if __SIZEOF_SIZE_T__ == __SIZEOF_LONG_LONG__
+    assert_cc(sizeof(size_t) == sizeof(unsigned long long));
+    return safe_atou64(s, ret_u);
+#else
+        assert_cc(sizeof(size_t) == sizeof(unsigned long));
         return safe_atolu(s, ret_u);
+#endif
 }
 #endif
 

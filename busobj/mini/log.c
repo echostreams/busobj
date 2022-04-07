@@ -182,9 +182,13 @@ static void log_assert(
     if (_likely_(LOG_PRI(level) > log_max_level))
         return;
 
+#if defined(__GNUC__)
     DISABLE_WARNING_FORMAT_NONLITERAL;
+#endif
     (void)snprintf(buffer, sizeof buffer, format, text, file, line, func);
+#if defined(__GNUC__)
     REENABLE_WARNING;
+#endif
 
     log_abort_msg = buffer;
 

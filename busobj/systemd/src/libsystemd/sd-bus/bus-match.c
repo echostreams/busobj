@@ -11,6 +11,10 @@
 #include "string-util.h"
 #include "strv.h"
 
+#ifdef WIN32
+#define strdup  _strdup
+#endif
+
 /* Example:
  *
  *  A: type=signal,sender=foo,interface=bar

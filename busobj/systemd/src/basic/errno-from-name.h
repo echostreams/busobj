@@ -213,7 +213,7 @@ hash_errno_name (register const char *str, register size_t len)
       327, 327, 327, 327, 327, 327, 327, 327, 327, 327,
       327, 327, 327, 327, 327, 327
     };
-  register unsigned int hval = len;
+  register unsigned int hval = (unsigned int)len;
 
   switch (hval)
     {

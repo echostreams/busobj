@@ -9,9 +9,6 @@
 #include <errno.h>
 #include <stdio.h>
 
-#ifdef WIN32
-#include <locale.h>
-#endif
 
 #include "systemd/src/systemd/sd-bus-vtable.h"
 
@@ -30,6 +27,10 @@
 #include "systemd/src/libsystemd/sd-bus/test-vtable-data.h"
 
 #define DEFAULT_BUS_PATH "unix:path=/run/dbus/system_bus_socket"
+
+#ifdef WIN32
+#define strdup _strdup
+#endif
 
 static struct context c;// = {};
 static int happy_finder_object = 0;
@@ -472,13 +473,6 @@ void test_hashmap_remove1() {
 
 
 int main(int argc, char** argv) {
-
-#ifdef WIN32
-    // Set the locale of the main thread to US English.
-    printf("The thread locale is now set to %s.\n",
-        setlocale(LC_ALL, ".UTF8"));
-
-#endif
 
     //test_hashmap_remove1();
     //test_set_ensure_consume();

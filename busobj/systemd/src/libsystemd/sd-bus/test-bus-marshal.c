@@ -128,12 +128,6 @@ int main(int argc, char *argv[]) {
         double dbl;
         uint64_t u64;
 
-#ifdef WIN32
-        // Set the locale of the main thread to US English.
-        printf("The thread locale is now set to %s.\n",
-            setlocale(LC_ALL, ".UTF8"));
-
-#endif
 /*
         test_setup_logging(LOG_INFO);
 

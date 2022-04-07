@@ -107,7 +107,7 @@ static inline void *memmem_safe(const void *haystack, size_t haystacklen, const 
 static inline void *mempmem_safe(const void *haystack, size_t haystacklen, const void *needle, size_t needlelen) {
         const uint8_t *p;
 
-        p = memmem_safe(haystack, haystacklen, needle, needlelen);
+        p = (const uint8_t *)memmem_safe(haystack, haystacklen, needle, needlelen);
         if (!p)
                 return NULL;
 

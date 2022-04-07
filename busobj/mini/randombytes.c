@@ -89,7 +89,7 @@ static int randombytes_win32_randombytes(void* buf, const size_t n)
 		CRYPT_VERIFYCONTEXT);
 	if (tmp == FALSE) return -1;
 
-	tmp = CryptGenRandom(ctx, n, (BYTE*)buf);
+	tmp = CryptGenRandom(ctx, (DWORD)n, (BYTE*)buf);
 	if (tmp == FALSE) return -1;
 
 	tmp = CryptReleaseContext(ctx, 0);

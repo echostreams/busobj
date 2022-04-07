@@ -530,7 +530,7 @@ static uint16_t pcapng_optlen(size_t len) {
 static void pcapng_putopt(FILE *f, uint16_t code, const void *data, size_t len) {
         struct pcapng_option opt = {
                 .code = code,
-                .length = len,
+                .length = (uint16_t)len,
         };
 
         assert(f);
@@ -595,7 +595,7 @@ static void pcapng_interface_header(FILE *f, size_t snaplen) {
                 .block_type = PCAPNG_INTERFACE_BLOCK,
                 .block_length = len,
                 .link_type  = 231, /* D-Bus */
-                .snap_len = snaplen,
+                .snap_len = (uint32_t)snaplen,
         };
 
         fwrite(&hdr, 1, sizeof(hdr), f);
@@ -632,8 +632,8 @@ int bus_message_pcap_frame(sd_bus_message *m, size_t snaplen, FILE *f) {
         pad = ALIGN4(caplen) - caplen;
 
         /* packet block has no options */
-        length = sizeof(struct pcapng_enhance_packet_block)
-                + caplen + pad + sizeof(uint32_t);
+        length = (uint32_t)(sizeof(struct pcapng_enhance_packet_block)
+                + caplen + pad + sizeof(uint32_t));
 
         struct pcapng_enhance_packet_block epb = {
                 .block_type = PCAPNG_ENHANCED_PACKET_BLOCK,
@@ -641,8 +641,8 @@ int bus_message_pcap_frame(sd_bus_message *m, size_t snaplen, FILE *f) {
                 .interface_id = 0,
                 .timestamp_hi = (uint32_t)(ts >> 32),
                 .timestamp_lo = (uint32_t)ts,
-                .original_length = msglen,
-                .capture_length = caplen,
+                .original_length = (uint32_t)msglen,
+                .capture_length = (uint32_t)caplen,
         };
 
         /* write the pcapng enhanced packet block header */

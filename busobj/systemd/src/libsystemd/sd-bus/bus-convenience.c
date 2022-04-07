@@ -482,7 +482,7 @@ _public_ int sd_bus_get_property_string(
         if (r < 0)
                 goto fail;
 
-        r = sd_bus_message_read_basic(reply, 's', &s);
+        r = sd_bus_message_read_basic(reply, 's', (void*)&s);
         if (r < 0)
                 goto fail;
 

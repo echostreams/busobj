@@ -31,6 +31,7 @@ void* mempcpy(void* dest, const void* src, size_t n);
 void* memrchr(const void* s, int c, size_t n);
 char* strchrnul(const char* s, int c);
 #include <endian.h>
+#define strdup  _strdup
 #endif
 
 static inline char* strstr_ptr(const char *haystack, const char *needle) {

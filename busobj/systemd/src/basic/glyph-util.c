@@ -81,11 +81,12 @@ const char *special_glyph(SpecialGlyph code) {
                         [SPECIAL_GLYPH_TREE_SPACE]              = "  ",                       /*    */
 
                         /* Single glyphs in both cases */
-                        [SPECIAL_GLYPH_TRIANGULAR_BULLET]       = "\342\200\243",             /* ‣ */
+                        //[SPECIAL_GLYPH_TRIANGULAR_BULLET]       = "\342\200\243",             /* ‣ */
+                        [SPECIAL_GLYPH_TRIANGULAR_BULLET]       = "\342\226\270",             /* ‣ */
                         [SPECIAL_GLYPH_BLACK_CIRCLE]            = "\342\227\217",             /* ● */
-                        [SPECIAL_GLYPH_WHITE_CIRCLE]            = "\u25CB",                   /* ○ */
-                        [SPECIAL_GLYPH_MULTIPLICATION_SIGN]     = "\u00D7",                   /* × */
-                        [SPECIAL_GLYPH_CIRCLE_ARROW]            = "\u21BB",                   /* ↻ */
+                        [SPECIAL_GLYPH_WHITE_CIRCLE]            = /*"\u25CB"*/"\xe2\x97\x8b", /* ○ */
+                        [SPECIAL_GLYPH_MULTIPLICATION_SIGN]     = /*"\u00D7"*/"\xc3\x97",     /* × */
+                        [SPECIAL_GLYPH_CIRCLE_ARROW]            = /*"\u21BB"*/"\xe2\x86\xbb", /* ↻ */
                         [SPECIAL_GLYPH_BULLET]                  = "\342\200\242",             /* • */
                         [SPECIAL_GLYPH_MU]                      = "\316\274",                 /* μ (actually called: GREEK SMALL LETTER MU) */
                         [SPECIAL_GLYPH_CHECK_MARK]              = "\342\234\223",             /* ✓ */
@@ -121,7 +122,7 @@ const char *special_glyph(SpecialGlyph code) {
                         /* These three emojis are single character cell glyphs in Unicode and also in ASCII. */
                         [SPECIAL_GLYPH_RECYCLING]               = "\u267B\uFE0F ",            /* ♻️  (actually called: UNIVERSAL RECYCLNG SYMBOL) */
                         [SPECIAL_GLYPH_DOWNLOAD]                = "\u2935\uFE0F ",            /* ⤵️  (actually called: RIGHT ARROW CURVING DOWN) */
-                        [SPECIAL_GLYPH_SPARKLES]                = "\u2728",                   /* ✨ */
+                        [SPECIAL_GLYPH_SPARKLES]                = /*"\u2728"*/"\xE2\x9C\xA8", /* ✨ */
                 },
         };
 

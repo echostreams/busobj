@@ -20,7 +20,10 @@
 #define strdup _strdup
 #endif
 
-BUS_ERROR_MAP_ELF_REGISTER const sd_bus_error_map bus_standard_errors[] = {
+#if defined(__GNUC__)
+BUS_ERROR_MAP_ELF_REGISTER 
+#endif
+const sd_bus_error_map bus_standard_errors[] = {
         SD_BUS_ERROR_MAP("org.freedesktop.DBus.Error.Failed",                           EACCES),
         SD_BUS_ERROR_MAP("org.freedesktop.DBus.Error.NoMemory",                         ENOMEM),
         SD_BUS_ERROR_MAP("org.freedesktop.DBus.Error.ServiceUnknown",                   EHOSTUNREACH),
@@ -645,7 +648,7 @@ _public_ int sd_bus_error_add_map(const sd_bus_error_map *map) {
                         if (additional_error_maps[n] == map)
                                 return 0;
 
-        maps = reallocarray(additional_error_maps, n + 2, sizeof(struct sd_bus_error_map*));
+        maps = reallocarray((void*)additional_error_maps, n + 2, sizeof(struct sd_bus_error_map*));
         if (!maps)
                 return -ENOMEM;
 
