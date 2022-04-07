@@ -56,6 +56,7 @@ typedef struct {
 /* Flags */
 
 enum {
+
         SD_BUS_CREDS_PID                = 1ULL << 0,
         SD_BUS_CREDS_TID                = 1ULL << 1,
         SD_BUS_CREDS_PPID               = 1ULL << 2,
@@ -88,10 +89,17 @@ enum {
         SD_BUS_CREDS_AUDIT_LOGIN_UID    = 1ULL << 29,
         SD_BUS_CREDS_TTY                = 1ULL << 30,
         SD_BUS_CREDS_UNIQUE_NAME        = 1ULL << 31,
-        SD_BUS_CREDS_WELL_KNOWN_NAMES   = 1ULL << 32,
-        SD_BUS_CREDS_DESCRIPTION        = 1ULL << 33,
-        SD_BUS_CREDS_AUGMENT            = 1ULL << 63, /* special flag, if on sd-bus will augment creds struct, in a potentially race-full way. */
-        _SD_BUS_CREDS_ALL               = (1ULL << 34) -1
+#ifdef WIN32
+#define         SD_BUS_CREDS_WELL_KNOWN_NAMES   (1ULL << 32)
+#define         SD_BUS_CREDS_DESCRIPTION        (1ULL << 33)
+#define         SD_BUS_CREDS_AUGMENT            (1ULL << 63) /* special flag, if on sd-bus will augment creds struct, in a potentially race-full way. */
+#define         _SD_BUS_CREDS_ALL               (1ULL << 34) -1
+#else
+        SD_BUS_CREDS_WELL_KNOWN_NAMES = 1ULL << 32,
+        SD_BUS_CREDS_DESCRIPTION = 1ULL << 33,
+        SD_BUS_CREDS_AUGMENT = 1ULL << 63, /* special flag, if on sd-bus will augment creds struct, in a potentially race-full way. */
+        _SD_BUS_CREDS_ALL = (1ULL << 34) - 1
+#endif
 };
 
 enum {

@@ -137,12 +137,7 @@ static int bus_socket_write_auth(sd_bus *b) {
                 k = writev(b->output_fd, b->auth_iovec + b->auth_index, ELEMENTSOF(b->auth_iovec) - b->auth_index);
         else {
 #ifdef WIN32
-            DWORD dwBytes;
-            WSABUF mh = {
-                .buf = b->auth_iovec + b->auth_index,
-                .len = ELEMENTSOF(b->auth_iovec) - b->auth_index,
-            };
-            WSASend(b->output_fd, &mh, 1, &dwBytes, 0, NULL, NULL);
+                k = writev(b->output_fd, b->auth_iovec + b->auth_index, ELEMENTSOF(b->auth_iovec) - b->auth_index);
 #else
                 struct msghdr mh = {
                         .msg_iov = b->auth_iovec + b->auth_index,
@@ -522,8 +517,14 @@ static int bus_socket_auth_verify(sd_bus *b) {
 }
 
 static int bus_socket_read_auth(sd_bus *b) {
+#ifdef WIN32
+        WSAMSG mh;
+        WSABUF iov;
+#else
         struct msghdr mh;
-        struct iovec iov = {};
+        struct iovec iov = { NULL, 0 };
+#endif
+        
         size_t n;
         ssize_t k;
         int r;
@@ -552,19 +553,32 @@ static int bus_socket_read_auth(sd_bus *b) {
 
         b->rbuffer = p;
 
+#ifdef WIN32
+        iov.buf = (uint8_t*)b->rbuffer + b->rbuffer_size;
+        iov.len = n - b->rbuffer_size;
+#else
         iov = IOVEC_MAKE((uint8_t *)b->rbuffer + b->rbuffer_size, n - b->rbuffer_size);
-
+#endif
         if (b->prefer_readv) {
                 k = readv(b->input_fd, &iov, 1);
                 if (k < 0)
                         k = -errno;
         } else {
+#ifdef WIN32
+            mh = (WSAMSG) {
+                .lpBuffers = &iov,
+                .dwBufferCount = 1,
+                .Control.buf = &control,
+                .Control.len = sizeof(control),
+            };
+#else
                 mh = (struct msghdr) {
                         .msg_iov = &iov,
                         .msg_iovlen = 1,
                         .msg_control = &control,
                         .msg_controllen = sizeof(control),
                 };
+#endif
 
                 k = recvmsg_safe(b->input_fd, &mh, MSG_DONTWAIT|MSG_CMSG_CLOEXEC);
                 if (k == -ENOTSOCK) {
@@ -588,12 +602,15 @@ static int bus_socket_read_auth(sd_bus *b) {
 
         b->rbuffer_size += k;
 
+#if defined(__linux__)
+
         if (handle_cmsg) {
                 struct cmsghdr *cmsg;
 
                 CMSG_FOREACH(cmsg, &mh)
                         if (cmsg->cmsg_level == SOL_SOCKET &&
-                            cmsg->cmsg_type == SCM_RIGHTS) {
+                            cmsg->cmsg_type == SCM_RIGHTS) 
+                        {
                                 int j;
 
                                 /* Whut? We received fds during the auth
@@ -606,6 +623,7 @@ static int bus_socket_read_auth(sd_bus *b) {
                                 log_debug("Got unexpected auxiliary data with level=%d and type=%d",
                                           cmsg->cmsg_level, cmsg->cmsg_type);
         }
+#endif
 
         r = bus_socket_auth_verify(b);
         if (r != 0)
@@ -711,6 +729,7 @@ int bus_socket_start_auth(sd_bus *b) {
 }
 
 static int bus_socket_inotify_setup(sd_bus *b) {
+#if defined(__linux__)
         _cleanup_free_ int *new_watches = NULL;
         _cleanup_free_ char *absolute = NULL;
         size_t n = 0, done = 0, i;
@@ -887,6 +906,9 @@ static int bus_socket_inotify_setup(sd_bus *b) {
 fail:
         bus_close_inotify_fd(b);
         return r;
+#else
+        return 0;
+#endif
 }
 
 int bus_socket_connect(sd_bus *b) {
@@ -975,6 +997,7 @@ int bus_socket_connect(sd_bus *b) {
 }
 
 int bus_socket_exec(sd_bus *b) {
+#if defined(__linux__)
         int s[2], r;
 
         assert(b);
@@ -1024,6 +1047,7 @@ int bus_socket_exec(sd_bus *b) {
 
         safe_close(s[1]);
         b->output_fd = b->input_fd = fd_move_above_stdio(s[0]);
+#endif
 
         bus_socket_setup(b);
 
@@ -1059,7 +1083,13 @@ int bus_socket_write_message(sd_bus *bus, sd_bus_message *m, size_t *idx) {
                 return r;
 
         n = m->n_iovec * sizeof(struct iovec);
-        iov = newa(struct iovec, n);
+        //iov = newa(struct iovec, n);
+        size_t _n_ = n;
+        assert(!size_multiply_overflow(sizeof(struct iovec), _n_));
+        size_t _nn_ = sizeof(struct iovec) * _n_;
+        assert(_nn_ <= ALLOCA_MAX);
+        iov = (struct iovec *)alloca(_nn_ == 0 ? 1 : _nn_);
+
         memcpy_safe(iov, m->iovec, n);
 
         j = 0;
@@ -1068,6 +1098,9 @@ int bus_socket_write_message(sd_bus *bus, sd_bus_message *m, size_t *idx) {
         if (bus->prefer_writev)
                 k = writev(bus->output_fd, iov, m->n_iovec);
         else {
+#ifdef WIN32
+                k = writev(bus->output_fd, iov, m->n_iovec);
+#else
                 struct msghdr mh = {
                         .msg_iov = iov,
                         .msg_iovlen = m->n_iovec,
@@ -1086,6 +1119,7 @@ int bus_socket_write_message(sd_bus *bus, sd_bus_message *m, size_t *idx) {
                 }
 
                 k = sendmsg(bus->output_fd, &mh, MSG_DONTWAIT|MSG_NOSIGNAL);
+#endif
                 if (k < 0 && errno == ENOTSOCK) {
                         bus->prefer_writev = true;
                         k = writev(bus->output_fd, iov, m->n_iovec);
@@ -1205,7 +1239,7 @@ static int bus_socket_make_message(sd_bus *bus, size_t size) {
 
 int bus_socket_read_message(sd_bus *bus) {
         struct msghdr mh;
-        struct iovec iov = {};
+        struct iovec iov = {NULL, 0};
         ssize_t k;
         size_t need;
         int r;
@@ -1265,7 +1299,7 @@ int bus_socket_read_message(sd_bus *bus) {
         }
 
         bus->rbuffer_size += k;
-
+#if defined(__linux__)
         if (handle_cmsg) {
                 struct cmsghdr *cmsg;
 
@@ -1298,7 +1332,7 @@ int bus_socket_read_message(sd_bus *bus) {
                                 log_debug("Got unexpected auxiliary data with level=%d and type=%d",
                                           cmsg->cmsg_level, cmsg->cmsg_type);
         }
-
+#endif
         r = bus_socket_read_message_need(bus, &need);
         if (r < 0)
                 return r;

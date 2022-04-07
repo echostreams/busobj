@@ -194,11 +194,244 @@ bool bus_pid_changed(sd_bus* bus) {
     return false;
 }
 
+_public_ int sd_bus_can_send(sd_bus* bus, char type) {
+    int r;
+
+    assert_return(bus, -EINVAL);
+    assert_return(bus = bus_resolve(bus), -ENOPKG);
+    assert_return(bus->state != BUS_UNSET, -ENOTCONN);
+    assert_return(!bus_pid_changed(bus), -ECHILD);
+
+    if (bus->is_monitor)
+        return 0;
+
+    if (type == SD_BUS_TYPE_UNIX_FD) {
+        if (!bus->accept_fd)
+            return 0;
+
+        //r = bus_ensure_running(bus);
+        r = 1;
+        if (r < 0)
+            return r;
+
+        return bus->can_fds;
+    }
+
+    return bus_type_is_valid(type);
+}
+
+#define COOKIE_CYCLED (UINT32_C(1) << 31)
+
+static uint64_t cookie_inc(uint64_t cookie) {
+
+    /* Stay within the 32bit range, since classic D-Bus can't deal with more */
+    if (cookie >= UINT32_MAX)
+        return COOKIE_CYCLED; /* Don't go back to zero, but use the highest bit for checking
+                               * whether we are looping. */
+
+    return cookie + 1;
+}
+
+static int next_cookie(sd_bus* b) {
+    uint64_t new_cookie;
+
+    assert(b);
+
+    new_cookie = cookie_inc(b->cookie);
+
+    /* Small optimization: don't bother with checking for cookie reuse until we overran cookiespace at
+     * least once, but then do it thorougly. */
+    if (FLAGS_SET(new_cookie, COOKIE_CYCLED)) {
+        uint32_t i;
+
+        /* Check if the cookie is currently in use. If so, pick the next one */
+        for (i = 0; i < COOKIE_CYCLED; i++) {
+            if (!ordered_hashmap_contains(b->reply_callbacks, &new_cookie))
+                goto good;
+
+            new_cookie = cookie_inc(new_cookie);
+        }
+
+        /* Can't fulfill request */
+        return -EBUSY;
+    }
+
+good:
+    b->cookie = new_cookie;
+    return 0;
+}
+
+static int bus_seal_message(sd_bus* b, sd_bus_message* m, usec_t timeout) {
+    int r;
+
+    assert(b);
+    assert(m);
+
+    if (m->sealed) {
+        /* If we copy the same message to multiple
+         * destinations, avoid using the same cookie
+         * numbers. */
+        b->cookie = MAX(b->cookie, BUS_MESSAGE_COOKIE(m));
+        return 0;
+    }
+
+    if (timeout == 0) {
+        r = sd_bus_get_method_call_timeout(b, &timeout);
+        if (r < 0)
+            return r;
+    }
+
+    if (!m->sender && b->patch_sender) {
+        r = sd_bus_message_set_sender(m, b->patch_sender);
+        if (r < 0)
+            return r;
+    }
+
+    r = next_cookie(b);
+    if (r < 0)
+        return r;
+
+    return sd_bus_message_seal(m, b->cookie, timeout);
+}
+
+static int bus_remarshal_message(sd_bus* b, sd_bus_message** m) {
+    bool remarshal = false;
+
+    assert(b);
+
+    /* wrong packet version */
+    if (b->message_version != 0 && b->message_version != (*m)->header->version)
+        remarshal = true;
+
+    /* wrong packet endianness */
+    if (b->message_endian != 0 && b->message_endian != (*m)->header->endian)
+        remarshal = true;
+
+    return remarshal ? bus_message_remarshal(b, m) : 0;
+}
+
+static int bus_write_message(sd_bus* bus, sd_bus_message* m, size_t* idx) {
+    int r;
+
+    assert(bus);
+    assert(m);
+
+    //r = bus_socket_write_message(bus, m, idx);
+    sd_bus_message_dump(m, NULL, SD_BUS_MESSAGE_DUMP_WITH_HEADER);
+    r = 1;
+
+    if (r <= 0)
+        return r;
+
+    if (*idx >= BUS_MESSAGE_SIZE(m))
+        log_debug("Sent message type=%s sender=%s destination=%s path=%s interface=%s member=%s cookie=%" PRIu64 " reply_cookie=%" PRIu64 " signature=%s error-name=%s error-message=%s",
+            bus_message_type_to_string(m->header->type),
+            strna(sd_bus_message_get_sender(m)),
+            strna(sd_bus_message_get_destination(m)),
+            strna(sd_bus_message_get_path(m)),
+            strna(sd_bus_message_get_interface(m)),
+            strna(sd_bus_message_get_member(m)),
+            BUS_MESSAGE_COOKIE(m),
+            m->reply_cookie,
+            strna(m->root_container.signature),
+            strna(m->error.name),
+            strna(m->error.message));
+
+    return r;
+}
 
 _public_ int sd_bus_send(sd_bus* bus, sd_bus_message* _m, uint64_t* cookie) {
-    // TODO...................
+    // TODO...................    
     printf("sd_bus_send: %s\n", _m->destination);
+    
+    _cleanup_(sd_bus_message_unrefp) sd_bus_message* m = sd_bus_message_ref(_m);
+    int r;
+
+    assert_return(m, -EINVAL);
+
+    if (bus)
+        assert_return(bus = bus_resolve(bus), -ENOPKG);
+    else
+        assert_return(bus = m->bus, -ENOTCONN);
+    assert_return(!bus_pid_changed(bus), -ECHILD);
+
+    if (!BUS_IS_OPEN(bus->state))
+        return -ENOTCONN;
+#if defined(__linux__)
+    if (m->n_fds > 0) {
+        r = sd_bus_can_send(bus, SD_BUS_TYPE_UNIX_FD);
+        if (r < 0)
+            return r;
+        if (r == 0)
+            return -EOPNOTSUPP;
+    }
+#endif
+
+    /* If the cookie number isn't kept, then we know that no reply
+     * is expected */
+    if (!cookie && !m->sealed)
+        m->header->flags |= BUS_MESSAGE_NO_REPLY_EXPECTED;
+
+    r = bus_seal_message(bus, m, 0);
+    if (r < 0)
+        return r;
+
+    /* Remarshall if we have to. This will possibly unref the
+     * message and place a replacement in m */
+    r = bus_remarshal_message(bus, &m);
+    if (r < 0)
+        return r;
+
+    /* If this is a reply and no reply was requested, then let's
+     * suppress this, if we can */
+    if (m->dont_send)
+        goto finish;
+
+    //if (IN_SET(bus->state, BUS_RUNNING, BUS_HELLO) 
+    if ((bus->state == BUS_RUNNING || bus->state == BUS_HELLO)
+        && bus->wqueue_size <= 0) {
+        size_t idx = 0;
+
+        r = bus_write_message(bus, m, &idx);
+        if (r < 0) {
+            if (ERRNO_IS_DISCONNECT(r)) {
+                bus_enter_closing(bus);
+                return -ECONNRESET;
+            }
+
+            return r;
+        }
+
+        if (idx < BUS_MESSAGE_SIZE(m)) {
+            /* Wasn't fully written. So let's remember how
+             * much was written. Note that the first entry
+             * of the wqueue array is always allocated so
+             * that we always can remember how much was
+             * written. */
+            bus->wqueue[0] = bus_message_ref_queued(m, bus);
+            bus->wqueue_size = 1;
+            bus->windex = idx;
+        }
+
+    }
+    else {
+        /* Just append it to the queue. */
+
+        if (bus->wqueue_size >= BUS_WQUEUE_MAX)
+            return -ENOBUFS;
+
+        if (!GREEDY_REALLOC(bus->wqueue, bus->wqueue_size + 1))
+            return -ENOMEM;
+
+        bus->wqueue[bus->wqueue_size++] = bus_message_ref_queued(m, bus);
+    }
+
+finish:
+    if (cookie)
+        *cookie = BUS_MESSAGE_COOKIE(m);
+
     return 1;
+
 }
 
 sd_bus* bus_resolve(sd_bus* bus) {

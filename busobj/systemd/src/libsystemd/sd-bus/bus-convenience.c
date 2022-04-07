@@ -486,7 +486,11 @@ _public_ int sd_bus_get_property_string(
         if (r < 0)
                 goto fail;
 
+#ifdef WIN32
+        n = _strdup(s);
+#else
         n = strdup(s);
+#endif
         if (!n) {
                 r = -ENOMEM;
                 goto fail;

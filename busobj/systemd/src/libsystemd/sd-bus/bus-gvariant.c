@@ -38,7 +38,7 @@ int bus_gvariant_get_size(const char *signature) {
                         if (r < 0) {
                             return r;
                         }
-                        sum = ALIGN_TO(sum, r);
+                        sum = (int)ALIGN_TO(sum, r);
 
                 }
 
@@ -106,7 +106,7 @@ int bus_gvariant_get_size(const char *signature) {
         if (r < 0)
                 return r;
 
-        return ALIGN_TO(sum, r);
+        return (int)ALIGN_TO(sum, r);
 }
 
 int bus_gvariant_get_alignment(const char *signature) {
@@ -188,7 +188,7 @@ int bus_gvariant_get_alignment(const char *signature) {
                 p += n;
         }
 
-        return alignment;
+        return (int)alignment;
 }
 
 int bus_gvariant_is_fixed_size(const char *signature) {
@@ -296,7 +296,7 @@ void bus_gvariant_write_word_le(void *p, size_t sz, size_t value) {
         assert(sz == 8 || (value < (1ULL << (sz*8))));
 
         if (sz == 1) {
-                *(uint8_t*) p = value;
+                *(uint8_t*) p = (uint8_t)value;
                 return;
         } else if (sz == 2)
                 x.u16 = htole16((uint16_t) value);

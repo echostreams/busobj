@@ -16,6 +16,10 @@
 #include "strv.h"
 #include "util.h"
 
+#ifdef WIN32
+#define strdup _strdup
+#endif
+
 BUS_ERROR_MAP_ELF_REGISTER const sd_bus_error_map bus_standard_errors[] = {
         SD_BUS_ERROR_MAP("org.freedesktop.DBus.Error.Failed",                           EACCES),
         SD_BUS_ERROR_MAP("org.freedesktop.DBus.Error.NoMemory",                         ENOMEM),
@@ -62,7 +66,7 @@ extern const sd_bus_error_map __stop_SYSTEMD_BUS_ERROR_MAP[];
 #else
 
 const sd_bus_error_map* __start_SYSTEMD_BUS_ERROR_MAP = &bus_standard_errors[0];
-const sd_bus_error_map* __stop_SYSTEMD_BUS_ERROR_MAP = &bus_standard_errors[sizeof bus_standard_errors / sizeof bus_standard_errors[0]];
+const sd_bus_error_map* __stop_SYSTEMD_BUS_ERROR_MAP = &bus_standard_errors[(sizeof bus_standard_errors / sizeof bus_standard_errors[0]) - 1];
 #endif
 
 /* Additional maps registered with sd_bus_error_add_map() are in this

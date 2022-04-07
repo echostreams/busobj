@@ -171,8 +171,11 @@
 #define ALIGN_PTR(p) ((void*) ALIGN((unsigned long) (p)))
 #define ALIGN4_PTR(p) ((void*) ALIGN4((unsigned long) (p)))
 #define ALIGN8_PTR(p) ((void*) ALIGN8((unsigned long) (p)))
-
+#if __SIZEOF_POINTER__ == __SIZEOF_LONG__
 #define ALIGN_TO_PTR(p, ali) ((void*) ALIGN_TO((unsigned long) (p), (ali)))
+#else
+#define ALIGN_TO_PTR(p, ali) ((void*) ALIGN_TO((unsigned long long) (p), (ali)))
+#endif
 
 #ifdef WIN32
 #include <intrin.h>
@@ -189,9 +192,33 @@ static inline int __builtin_clzl(unsigned long mask)
 #endif
     return 32; // Undefined Behavior.
 }
+static inline int __builtin_clzll(unsigned long long x) {
+    //unsigned long ret;
+    //_BitScanReverse64(&ret, x);
+    //return (int)(63 ^ ret);
+    return (int)__lzcnt64(x);
+}
 #endif
 
 /* align to next higher power-of-2 (except for: 0 => 0, overflow => 0) */
+#if __SIZEOF_LONG__ != __SIZEOF_SIZE_T
+static inline size_t ALIGN_POWER2(size_t u) {
+
+    /* Avoid subtraction overflow */
+    if (u == 0)
+        return 0;
+
+    /* clz(0) is undefined */
+    if (u == 1)
+        return 1;
+
+    /* left-shift overflow is undefined */
+    if (__builtin_clzll(u - 1UL) < 1)
+        return 0;
+
+    return 1ULL << (sizeof(u) * 8 - __builtin_clzll(u - 1UL));
+}
+#else
 static inline unsigned long ALIGN_POWER2(unsigned long u) {
 
         /* Avoid subtraction overflow */
@@ -208,6 +235,7 @@ static inline unsigned long ALIGN_POWER2(unsigned long u) {
 
         return 1UL << (sizeof(u) * 8 - __builtin_clzl(u - 1UL));
 }
+#endif
 
 static inline size_t GREEDY_ALLOC_ROUND_UP(size_t l) {
         size_t m;

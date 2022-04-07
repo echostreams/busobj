@@ -62,12 +62,12 @@ static inline void *mempset(void *s, int c, size_t n) {
 
 #ifdef WIN32
 
-inline void* memmem(const void* src, int srclen, const void* trg, int trglen)
+inline void* memmem(const void* src, size_t srclen, const void* trg, size_t trglen)
 {
     unsigned char* csrc = (unsigned char*)src;
     unsigned char* ctrg = (unsigned char*)trg;
     unsigned char* tptr, * cptr;
-    int searchlen, ndx = 0;
+    size_t searchlen, ndx = 0;
 
     /* add some initial error checking if you want */
 

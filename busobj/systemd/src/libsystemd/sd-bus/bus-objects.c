@@ -14,6 +14,7 @@
 
 #ifdef WIN32
 #define CAP_SYS_ADMIN 21
+#define strdup _strdup
 #endif
 
 static int node_vtable_get_userdata(
@@ -332,7 +333,7 @@ static int check_access(sd_bus *bus, sd_bus_message *m, struct vtable_member *c,
         else
                 cap--;
 
-        r = sd_bus_query_sender_privilege(m, cap);
+        r = sd_bus_query_sender_privilege(m, (int)cap);
         if (r < 0)
                 return r;
         if (r > 0)

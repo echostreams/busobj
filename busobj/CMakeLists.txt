@@ -10,7 +10,17 @@ if(WIN32)
 	add_definitions(-DLITTLE_ENDIAN=1234)
 	add_definitions(-DBIG_ENDIAN=4321)
 	add_definitions(-DPDP_ENDIAN=3412)
+
+	macro(get_win_hex outvar)
+		string(REGEX MATCH "^([0-9]+)\\.([0-9]+)" ${outvar} ${CMAKE_SYSTEM_VERSION})
+		math(EXPR ${outvar} "(${CMAKE_MATCH_1} << 8) + ${CMAKE_MATCH_2}" OUTPUT_FORMAT HEXADECIMAL)
+	endmacro()
+
+	get_win_hex(winver)
+	add_compile_definitions(_WIN32_WINNT=${winver})
+
 endif()
+
 
 if(IS_BIG_ENDIAN)
  message(STATUS "BIG_ENDIAN")
@@ -32,12 +42,29 @@ include_directories(
 
 message(STATUS "--CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
 
+check_type_size("int" __SIZEOF_INT__)
+check_type_size("long" __SIZEOF_LONG__)
+check_type_size("size_t" __SIZEOF_SIZE_T__)
+check_type_size("void*" __SIZEOF_POINTER__)
+check_type_size("long long" __SIZEOF_LONG_LONG__)
+
+message(STATUS "__SIZEOF_INT__       : ${__SIZEOF_INT__}")
+message(STATUS "__SIZEOF_LONG__      : ${__SIZEOF_LONG__}")
+message(STATUS "__SIZEOF_LONG_LONG__ : ${__SIZEOF_LONG_LONG__}")
+message(STATUS "__SIZEOF_SIZE_T__    : ${__SIZEOF_SIZE_T__}")
+message(STATUS "__SIZEOF_POINTER__   : ${__SIZEOF_POINTER__}")
+
+add_definitions(-D__SIZEOF_INT__=${__SIZEOF_INT__})
+add_definitions(-D__SIZEOF_LONG__=${__SIZEOF_LONG__})
+add_definitions(-D__SIZEOF_POINTER__=${__SIZEOF_POINTER__})
+add_definitions(-D__SIZEOF_LONG_LONG__=${__SIZEOF_LONG_LONG__})
+add_definitions(-D__SIZEOF_SIZE_T__=${__SIZEOF_SIZE_T__})
+
 if(WIN32)
+
 	include_directories("windows")
 	include_directories("windows/posix/include")
-	add_definitions(-D__SIZEOF_INT__=4)
-	add_definitions(-D__SIZEOF_POINTER__=8)
-	add_definitions(-D__SIZEOF_LONG_LONG__=8)
+	
 	IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "AMD64") # for desktop
 		add_definitions(-D__x86_64__)
 	ENDIF()
@@ -50,12 +77,12 @@ else()
 endif()
 
 add_definitions(-DRELATIVE_SOURCE_PATH="systemd/src")
-add_definitions(-DGETTEXT_PACKAGE="\\\"systemd\\\"")
+add_definitions(-DGETTEXT_PACKAGE="systemd")
 add_definitions(-DNOBODY_USER_NAME="nobody")
-add_definitions(-DNOBODY_GROUP_NAME="\\\"nogroup\\\"")
+add_definitions(-DNOBODY_GROUP_NAME="nogroup")
 add_definitions(-DNOLOGIN="/usr/sbin/nologin")
-add_definitions(-DFALLBACK_HOSTNAME="\\\"buildroot\\\"")
-add_definitions(-DDEFAULT_HIERARCHY_NAME="\\\"hybrid\\\"")
+add_definitions(-DFALLBACK_HOSTNAME="buildroot")
+add_definitions(-DDEFAULT_HIERARCHY_NAME="hybrid")
 add_definitions(-DSYSTEMD_TEST_DATA="./testdata")
 add_definitions(-DSYSTEMD_CATALOG_DIR="./catalog")
 add_definitions(-DSYSTEMD_SLOW_TESTS_DEFAULT=0)
@@ -255,7 +282,7 @@ add_library(libsystemd-mini
 	"systemd/src/basic/mempool.c"
 	#"systemd/src/shared/tests.c"
 	"systemd/src/shared/bus-object.c"
-	#"systemd/src/shared/bus-print-properties.c"
+	"systemd/src/shared/bus-print-properties.c"
 	#"systemd/src/shared/varlink.c"
 
 	"windows/asprintf.c"
@@ -330,4 +357,8 @@ add_executable(objmgr objmgr.cpp
 	"sdbusplus/src/message/native_types.cpp"
 )
 target_compile_features(objmgr PRIVATE cxx_std_20)
+if(MSVC)
+	target_compile_definitions(objmgr PRIVATE -D__EXCEPTIONS)
+	target_compile_options(objmgr PRIVATE /EHsc /W3)
+endif()
 target_link_libraries(objmgr ${Boost_LIBRARIES} Boost::thread libsystemd-mini)

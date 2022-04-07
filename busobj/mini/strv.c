@@ -18,6 +18,10 @@
 #include "string-util.h"
 #include "strv.h"
 
+#ifdef WIN32
+#define strdup _strdup
+#endif
+
 char* strv_find(char* const* l, const char* name) {
     char* const* i;
 

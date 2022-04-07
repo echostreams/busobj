@@ -41,7 +41,7 @@ struct Interval
 static int
 interval_compare (const void *key, const void *elt)
 {
-  unichar c = (unichar) (long) (key);
+  unichar c = (unichar) (unsigned long long) (key);
   struct Interval *interval = (struct Interval *)elt;
 
   if (c < interval->start)

@@ -91,6 +91,40 @@ void doListNames(
 			"ListNames");
 }
 
+namespace sdbusplus {
+	namespace xyz {
+		namespace openbmc_project {
+			namespace Common {
+				namespace Error {
+					struct ResourceNotFound final : public sdbusplus::exception::generated_exception
+					{
+						static constexpr auto errName = "xyz.openbmc_project.Common.Error.ResourceNotFound";
+						static constexpr auto errDesc = "The resource is not found.";
+						static constexpr auto errWhat = "xyz.openbmc_project.Common.Error.ResourceNotFound: The resource is not found.";
+
+						const char* name() const noexcept override;
+						const char* description() const noexcept override;
+						const char* what() const noexcept override;
+					};
+
+					const char* ResourceNotFound::name() const noexcept
+					{
+						return errName;
+					}
+					const char* ResourceNotFound::description() const noexcept
+					{
+						return errDesc;
+					}
+					const char* ResourceNotFound::what() const noexcept
+					{
+						return errWhat;
+					}
+				}
+			}
+		}
+	}
+}
+
 boost::container::flat_map<std::string, boost::container::flat_set<std::string>>
 getObject(const interface_map_type& interface_map, const std::string& path,
 	std::vector<std::string>& interfaces)
@@ -99,32 +133,36 @@ getObject(const interface_map_type& interface_map, const std::string& path,
 		boost::container::flat_set<std::string>>
 		results;
 
-	// Interfaces need to be sorted for intersect to function
-	std::sort(interfaces.begin(), interfaces.end());
-	auto path_ref = interface_map.find(path);
-	if (path_ref == interface_map.end())
-	{
-		throw std::out_of_range("Resource Not Found");// std::exception("Resource Not Found");
-		// sdbusplus::xyz::openbmc_project::Common::Error::ResourceNotFound();
-	}
-	if (interfaces.empty())
-	{
-		return path_ref->second;
-	}
-	for (auto& interface_map : path_ref->second)
-	{
-		if (intersect(interfaces.begin(), interfaces.end(),
-			interface_map.second.begin(), interface_map.second.end()))
+	//try {
+		// Interfaces need to be sorted for intersect to function
+		std::sort(interfaces.begin(), interfaces.end());
+		auto path_ref = interface_map.find(path);
+		if (path_ref == interface_map.end())
 		{
-			results.emplace(interface_map.first, interface_map.second);
+			throw sdbusplus::xyz::openbmc_project::Common::Error::ResourceNotFound();
 		}
-	}
+		if (interfaces.empty())
+		{
+			return path_ref->second;
+		}
+		for (auto& interface_map : path_ref->second)
+		{
+			if (intersect(interfaces.begin(), interfaces.end(),
+				interface_map.second.begin(), interface_map.second.end()))
+			{
+				results.emplace(interface_map.first, interface_map.second);
+			}
+		}
 
-	if (results.empty())
-	{
-		//throw sdbusplus::xyz::openbmc_project::Common::Error::ResourceNotFound();
-		throw std::out_of_range("Resource Not Found");// std::exception("Resource Not Found");
-	}
+		if (results.empty())
+		{
+			throw sdbusplus::xyz::openbmc_project::Common::Error::ResourceNotFound();
+		}
+	//}
+	//catch (std::exception& e)
+	//{
+	//	printf("Exception: %s\n", e.what());
+	//}
 
 	return results;
 }
@@ -225,13 +263,13 @@ int main(int argc, char** argv)
 	bus_iteration_counter_increase(bus);
 	bus_message_set_sender_local(bus, m.get());
 	sd_bus_message_seal(m.get(), 0xFFFFFFFFULL, 0);
-
-	try {
+	bus_set_state(bus, /*BUS_RUNNING*/5);
+	//try {
 		bus_process_object(bus, m.get());
-	}
-	catch (std::exception& e) {
-		printf("Exception: %s\n", e.what());
-	}
+	//}
+	//catch (std::exception& e) {
+	//	printf("Exception: %s\n", e.what());
+	//}
 	io.run();
 
 	return 0;

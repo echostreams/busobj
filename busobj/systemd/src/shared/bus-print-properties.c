@@ -105,13 +105,26 @@ static int bus_print_property(const char *name, const char *expected_value, sd_b
                  * should it turn out to not be sufficient */
 
                 if (endswith(name, "Timestamp") ||
-                    STR_IN_SET(name, "NextElapseUSecRealtime", "LastTriggerUSec", "TimeUSec", "RTCTimeUSec"))
+                    STR_IN_SET(name, "NextElapseUSecRealtime", "LastTriggerUSec", "TimeUSec", "RTCTimeUSec")) 
+                {
+#ifdef WIN32
+                    char buf[FORMAT_TIMESTAMP_MAX];
+                    bus_print_property_value(name, expected_value, flags, 
+                        format_timestamp(buf, FORMAT_TIMESTAMP_MAX, u));
+#else
+                    bus_print_property_value(name, expected_value, flags, FORMAT_TIMESTAMP(u));
+#endif
 
-                        bus_print_property_value(name, expected_value, flags, FORMAT_TIMESTAMP(u));
-
-                else if (strstr(name, "USec"))
-                        bus_print_property_value(name, expected_value, flags, FORMAT_TIMESPAN(u, 0));
-
+                }
+                else if (strstr(name, "USec")) {
+#ifdef WIN32
+                    char buf[FORMAT_TIMESPAN_MAX];
+                    bus_print_property_value(name, expected_value, flags,
+                        format_timespan(buf, FORMAT_TIMESPAN_MAX, u, 0));
+#else
+                    bus_print_property_value(name, expected_value, flags, FORMAT_TIMESPAN(u, 0));
+#endif
+                }
                 else if (streq(name, "CoredumpFilter"))
                         bus_print_property_valuef(name, expected_value, flags, "0x%"PRIx64, u);
 

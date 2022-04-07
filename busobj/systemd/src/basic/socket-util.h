@@ -63,6 +63,8 @@ struct ucred
     gid_t gid;			/* GID of sending process.  */
 };
 
+#define CMSG_ALIGN(len)  ( ((len)+sizeof(long)-1) & ~(sizeof(long)-1) ) 
+
 #endif
 
 union sockaddr_union {
@@ -275,7 +277,7 @@ struct cmsghdr* cmsg_find(struct msghdr *mh, int level, int type, socklen_t leng
                          strnlen(_sa->sun_path, sizeof(_sa->sun_path))+1); \
         })
 
-static inline int __SOCKADDR_UN_LEN(struct sockaddr_un sa)
+static inline size_t __SOCKADDR_UN_LEN(struct sockaddr_un sa)
         {                                                              
                 const struct sockaddr_un *_sa = &(sa);                 
                 assert(_sa->sun_family == AF_UNIX);
