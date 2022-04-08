@@ -367,3 +367,7 @@ if(MSVC)
 	target_compile_options(objmgr PRIVATE /EHsc /W3)
 endif()
 target_link_libraries(objmgr ${Boost_LIBRARIES} Boost::thread libsystemd-mini)
+
+
+add_executable (bus-server "bus-server.c")
+target_link_libraries(bus-server libsystemd-mini)
