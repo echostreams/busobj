@@ -1353,9 +1353,12 @@ ssize_t readv(int fildes, const struct iovec *iov, int iovcnt)
 	long r, t = 0;
 	while (iovcnt)
 	{
-		r = _read(fildes, iov->iov_base, iov->iov_len);
-		if (r < 0)
-			return r;
+		r = recv((SOCKET)fildes, iov->iov_base, iov->iov_len, 0);
+		if (r < 0) {
+			printf("readv: %d %d\n", iovcnt, WSAGetLastError());
+			//return r;
+			return 0;
+		}
 		t += r;
 		iov++;
 		iovcnt--;

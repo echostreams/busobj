@@ -1041,14 +1041,196 @@ sd_bus* bus_resolve(sd_bus* bus) {
     }
 }
 
+static void rqueue_drop_one(sd_bus* bus, size_t i) {
+    assert(bus);
+    assert(i < bus->rqueue_size);
+
+    bus_message_unref_queued(bus->rqueue[i], bus);
+    memmove(bus->rqueue + i, bus->rqueue + i + 1, sizeof(sd_bus_message*) * (bus->rqueue_size - i - 1));
+    bus->rqueue_size--;
+}
+
+static usec_t calc_elapse(sd_bus* bus, uint64_t usec) {
+    assert(bus);
+
+    assert_cc(sizeof(usec_t) == sizeof(uint64_t));
+
+    if (usec == USEC_INFINITY)
+        return 0;
+
+    /* We start all timeouts the instant we enter BUS_HELLO/BUS_RUNNING state, so that the don't run in parallel
+     * with any connection setup states. Hence, if a method callback is started earlier than that we just store the
+     * relative timestamp, and afterwards the absolute one. */
+
+     //if (IN_SET(bus->state, BUS_WATCH_BIND, BUS_OPENING, BUS_AUTHENTICATING))
+    if ((bus->state == BUS_WATCH_BIND || bus->state == BUS_OPENING || bus->state == BUS_AUTHENTICATING))
+        return usec;
+    else
+        return usec_add(now(CLOCK_MONOTONIC), usec);
+}
+
+static int timeout_compare(const void* a, const void* b) {
+    const struct reply_callback* x = a, * y = b;
+
+    if (x->timeout_usec != 0 && y->timeout_usec == 0)
+        return -1;
+
+    if (x->timeout_usec == 0 && y->timeout_usec != 0)
+        return 1;
+
+    return CMP(x->timeout_usec, y->timeout_usec);
+}
+
 _public_ int sd_bus_call(
     sd_bus* bus,
     sd_bus_message* _m,
     uint64_t usec,
     sd_bus_error* error,
     sd_bus_message** reply) {
-    //////////////////////////
-    return 0;
+
+    _cleanup_(sd_bus_message_unrefp) sd_bus_message* m = sd_bus_message_ref(_m);
+    usec_t timeout;
+    uint64_t cookie;
+    size_t i;
+    int r;
+
+    bus_assert_return(m, -EINVAL, error);
+    bus_assert_return(m->header->type == SD_BUS_MESSAGE_METHOD_CALL, -EINVAL, error);
+    bus_assert_return(!(m->header->flags & BUS_MESSAGE_NO_REPLY_EXPECTED), -EINVAL, error);
+    bus_assert_return(!bus_error_is_dirty(error), -EINVAL, error);
+
+    if (bus)
+        assert_return(bus = bus_resolve(bus), -ENOPKG);
+    else
+        assert_return(bus = m->bus, -ENOTCONN);
+    bus_assert_return(!bus_pid_changed(bus), -ECHILD, error);
+
+    if (!BUS_IS_OPEN(bus->state)) {
+        r = -ENOTCONN;
+        goto fail;
+    }
+
+    r = bus_ensure_running(bus);
+    if (r < 0)
+        goto fail;
+
+    i = bus->rqueue_size;
+
+    r = bus_seal_message(bus, m, usec);
+    if (r < 0)
+        goto fail;
+
+    r = bus_remarshal_message(bus, &m);
+    if (r < 0)
+        goto fail;
+
+    r = sd_bus_send(bus, m, &cookie);
+    if (r < 0)
+        goto fail;
+
+    timeout = calc_elapse(bus, m->timeout);
+
+    for (;;) {
+        usec_t left;
+
+        while (i < bus->rqueue_size) {
+            _cleanup_(sd_bus_message_unrefp) sd_bus_message* incoming = NULL;
+
+            incoming = sd_bus_message_ref(bus->rqueue[i]);
+
+            if (incoming->reply_cookie == cookie) {
+                /* Found a match! */
+
+                rqueue_drop_one(bus, i);
+                log_debug_bus_message(incoming);
+
+                if (incoming->header->type == SD_BUS_MESSAGE_METHOD_RETURN) {
+
+                    if (incoming->n_fds <= 0 || bus->accept_fd) {
+                        if (reply) {
+                            //*reply = TAKE_PTR(incoming);
+                            *reply = incoming;
+                            incoming = NULL;
+                        }
+                        return 1;
+                    }
+
+                    return sd_bus_error_set(error, SD_BUS_ERROR_INCONSISTENT_MESSAGE, "Reply message contained file descriptors which I couldn't accept. Sorry.");
+
+                }
+                else if (incoming->header->type == SD_BUS_MESSAGE_METHOD_ERROR)
+                    return sd_bus_error_copy(error, &incoming->error);
+                else {
+                    r = -EIO;
+                    goto fail;
+                }
+
+            }
+            else if (BUS_MESSAGE_COOKIE(incoming) == cookie &&
+                bus->unique_name &&
+                incoming->sender &&
+                streq(bus->unique_name, incoming->sender)) {
+
+                rqueue_drop_one(bus, i);
+
+                /* Our own message? Somebody is trying to send its own client a message,
+                 * let's not dead-lock, let's fail immediately. */
+
+                r = -ELOOP;
+                goto fail;
+            }
+
+            /* Try to read more, right-away */
+            i++;
+        }
+
+        r = bus_read_message(bus);
+        if (r < 0) {
+            if (ERRNO_IS_DISCONNECT(r)) {
+                bus_enter_closing(bus);
+                r = -ECONNRESET;
+            }
+
+            goto fail;
+        }
+        if (r > 0)
+            continue;
+
+        if (timeout > 0) {
+            usec_t n;
+
+            n = now(CLOCK_MONOTONIC);
+            if (n >= timeout) {
+                r = -ETIMEDOUT;
+                goto fail;
+            }
+
+            left = timeout - n;
+        }
+        else
+            left = UINT64_MAX;
+
+        r = bus_poll(bus, true, left);
+        if (r < 0)
+            goto fail;
+        if (r == 0) {
+            r = -ETIMEDOUT;
+            goto fail;
+        }
+
+        r = dispatch_wqueue(bus);
+        if (r < 0) {
+            if (ERRNO_IS_DISCONNECT(r)) {
+                bus_enter_closing(bus);
+                r = -ECONNRESET;
+            }
+
+            goto fail;
+        }
+    }
+
+fail:
+    return sd_bus_error_set_errno(error, r);
 }
 
 _public_ int sd_bus_call_async(
@@ -1059,7 +1241,76 @@ _public_ int sd_bus_call_async(
     void* userdata,
     uint64_t usec) {
 
-    return 0;
+    _cleanup_(sd_bus_message_unrefp) sd_bus_message* m = sd_bus_message_ref(_m);
+    _cleanup_(sd_bus_slot_unrefp) sd_bus_slot* s = NULL;
+    int r;
+
+    assert_return(m, -EINVAL);
+    assert_return(m->header->type == SD_BUS_MESSAGE_METHOD_CALL, -EINVAL);
+    assert_return(!m->sealed || (!!callback == !(m->header->flags & BUS_MESSAGE_NO_REPLY_EXPECTED)), -EINVAL);
+
+    if (bus)
+        assert_return(bus = bus_resolve(bus), -ENOPKG);
+    else
+        assert_return(bus = m->bus, -ENOTCONN);
+    assert_return(!bus_pid_changed(bus), -ECHILD);
+
+    if (!BUS_IS_OPEN(bus->state))
+        return -ENOTCONN;
+
+    /* If no callback is specified and there's no interest in a slot, then there's no reason to ask for a reply */
+    if (!callback && !slot && !m->sealed)
+        m->header->flags |= BUS_MESSAGE_NO_REPLY_EXPECTED;
+
+    r = ordered_hashmap_ensure_allocated(&bus->reply_callbacks, &uint64_hash_ops);
+    if (r < 0)
+        return r;
+
+    r = prioq_ensure_allocated(&bus->reply_callbacks_prioq, timeout_compare);
+    if (r < 0)
+        return r;
+
+    r = bus_seal_message(bus, m, usec);
+    if (r < 0)
+        return r;
+
+    r = bus_remarshal_message(bus, &m);
+    if (r < 0)
+        return r;
+
+    if (slot || callback) {
+        s = bus_slot_allocate(bus, !slot, BUS_REPLY_CALLBACK, sizeof(struct reply_callback), userdata);
+        if (!s)
+            return -ENOMEM;
+
+        s->reply_callback.callback = callback;
+
+        s->reply_callback.cookie = BUS_MESSAGE_COOKIE(m);
+        r = ordered_hashmap_put(bus->reply_callbacks, &s->reply_callback.cookie, &s->reply_callback);
+        if (r < 0) {
+            s->reply_callback.cookie = 0;
+            return r;
+        }
+
+        s->reply_callback.timeout_usec = calc_elapse(bus, m->timeout);
+        if (s->reply_callback.timeout_usec != 0) {
+            r = prioq_put(bus->reply_callbacks_prioq, &s->reply_callback, &s->reply_callback.prioq_idx);
+            if (r < 0) {
+                s->reply_callback.timeout_usec = 0;
+                return r;
+            }
+        }
+    }
+
+    r = sd_bus_send(bus, m, s ? &s->reply_callback.cookie : NULL);
+    if (r < 0)
+        return r;
+
+    if (slot)
+        *slot = s;
+    s = NULL;
+
+    return r;
 }
 
 _public_ int sd_bus_get_method_call_timeout(sd_bus* bus, uint64_t* ret) {
@@ -1912,7 +2163,7 @@ void bus_enter_closing(sd_bus* bus) {
 
     //if (!IN_SET(bus->state, BUS_WATCH_BIND, BUS_OPENING, BUS_AUTHENTICATING, BUS_HELLO, BUS_RUNNING))
     if (!(bus->state == BUS_WATCH_BIND || bus->state == BUS_OPENING ||
-        bus->state == BUS_AUTHENTICATING || bus->state == BUS_HELLO, BUS_RUNNING))
+        bus->state == BUS_AUTHENTICATING || bus->state == BUS_HELLO || bus->state == BUS_RUNNING))
         return;
 
     bus_set_state(bus, BUS_CLOSING);
@@ -2722,14 +2973,7 @@ static int bus_read_message(sd_bus* bus) {
     return bus_socket_read_message(bus);
 }
 
-static void rqueue_drop_one(sd_bus* bus, size_t i) {
-    assert(bus);
-    assert(i < bus->rqueue_size);
 
-    bus_message_unref_queued(bus->rqueue[i], bus);
-    memmove(bus->rqueue + i, bus->rqueue + i + 1, sizeof(sd_bus_message*) * (bus->rqueue_size - i - 1));
-    bus->rqueue_size--;
-}
 
 static int dispatch_rqueue(sd_bus* bus, sd_bus_message** m) {
     int r, ret = 0;

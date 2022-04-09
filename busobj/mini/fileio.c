@@ -50,8 +50,13 @@ extern "C" {
     int close_nointr(int fd) {
         assert(fd >= 0);
 
+#ifdef WIN32
+        if (CloseHandle(fd))
+            return 0;
+#else
         if (close(fd) >= 0)
             return 0;
+#endif
 
         /*
          * Just ignore EINTR; a retry loop is the wrong thing to do on

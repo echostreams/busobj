@@ -322,7 +322,7 @@ ssize_t recvmsg_safe(int sockfd, struct msghdr* msg, int flags) {
      *
      * Note that unlike our usual coding style this might modify *msg on failure. */
 #ifdef WIN32
-    WSAMSG* wmsg = (WSAMSG*)msg;
+    LPWSAMSG wmsg = (LPWSAMSG)msg;
     LPFN_WSARECVMSG     lpfnWSARecvMsg = NULL;
     GUID                guidWSARecvMsg = WSAID_WSARECVMSG;
     DWORD               dwBytes = 0;
@@ -366,18 +366,40 @@ ssize_t recvmsg_safe(int sockfd, struct msghdr* msg, int flags) {
     }
     */
 
-    dwBytes = recv(sockfd, wmsg->lpBuffers->buf, wmsg->lpBuffers->len, /*flags*/0);
-    printf("recv bytes: %d\n", dwBytes);
-    for (int i = 0; i < dwBytes; i++) {
-        printf("%02x ", (int)wmsg->lpBuffers->buf[i]);
+    int iResult = recv(sockfd, wmsg->lpBuffers->buf, wmsg->lpBuffers->len, /*flags*/0);
+    if (iResult > 0) {
+        printf("Bytes received: %d\n", iResult);
+        for (int i = 0; i < iResult; i++) {
+            printf("%02x ", wmsg->lpBuffers->buf[i]);
+        }
+        printf("\n");
     }
-    printf("\n");
-    n = dwBytes;
+    else if (iResult == 0)
+        printf("Connection closed\n");
+    else {
+        int e = WSAGetLastError();
+        printf("recv failed: %d\n", e);
+        if (e == WSAEWOULDBLOCK) {
+            /*This error is returned from operations on nonblocking sockets 
+            that cannot be completed immediately, for example recv when no data is queued to be read from the socket. 
+            It is a nonfatal error, and the operation should be retried later.*/
+            iResult = -ENOTSOCK;
+        }
+        else
+        {
+            iResult = -e;
+        }
+    }
+
+    n = iResult;
+    if (n < 0)
+        return n;
 #else
     n = recvmsg(sockfd, msg, flags);
-#endif
     if (n < 0)
         return -errno;
+#endif
+    
 
     if (FLAGS_SET(msg->msg_flags, MSG_CTRUNC)) {
         cmsg_close_all(msg);

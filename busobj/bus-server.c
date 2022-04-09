@@ -42,6 +42,7 @@ static void* server(void* p) {
     assert_se(sd_id128_randomize(&id) >= 0);
 
     assert_se(sd_bus_new(&bus) >= 0);
+    assert_se(sd_bus_set_description(bus, "server") >= 0);
     assert_se(sd_bus_set_fd(bus, c->fds[0], c->fds[0]) >= 0);
     assert_se(sd_bus_set_server(bus, 1, id) >= 0);
     assert_se(sd_bus_set_anonymous(bus, c->server_anonymous_auth) >= 0);
@@ -124,6 +125,7 @@ static int client(struct context* c) {
     int r;
 
     assert_se(sd_bus_new(&bus) >= 0);
+    assert_se(sd_bus_set_description(bus, "client") >= 0);
     assert_se(sd_bus_set_fd(bus, c->fds[1], c->fds[1]) >= 0);
     assert_se(sd_bus_negotiate_fds(bus, c->client_negotiate_unix_fds) >= 0);
     assert_se(sd_bus_set_anonymous(bus, c->client_anonymous_auth) >= 0);
@@ -169,14 +171,18 @@ static int test_one(bool client_negotiate_unix_fds, bool server_negotiate_unix_f
     c.server_anonymous_auth = server_anonymous_auth;
 
 #ifdef WIN32
-    s = CreateThread(NULL,                   // default security attributes
+    s = _beginthread(server, 0, &c);
+    /*
+    s = CreateThread(NULL,      // default security attributes
         0,                      // use default stack size  
         server,                 // thread function name
         &c,                     // argument to thread function 
         0,                      // use default creation flags 
         &dwThreadId);
+    */
     if (s == INVALID_HANDLE_VALUE)
         return -1;
+    Sleep(3000);
 #else    
 
     r = pthread_create(&s, NULL, server, &c);
@@ -211,7 +217,6 @@ int main(int argc, char* argv[]) {
 
     log_set_max_level(LOG_DEBUG);
 
-#if 0
     r = test_one(true, true, false, false);
     assert_se(r >= 0);
 
@@ -220,10 +225,10 @@ int main(int argc, char* argv[]) {
 
     r = test_one(false, true, false, false);
     assert_se(r >= 0);
-#endif
+
     r = test_one(false, false, false, false);
     assert_se(r >= 0);
-#if 0
+
     r = test_one(true, true, true, true);
     assert_se(r >= 0);
 
@@ -232,6 +237,6 @@ int main(int argc, char* argv[]) {
 
     r = test_one(true, true, true, false);
     assert_se(r == -EPERM);
-#endif
+
     return EXIT_SUCCESS;
 }
