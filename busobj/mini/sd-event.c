@@ -484,6 +484,8 @@ static sd_event_source* source_free(sd_event_source* s) {
     return NULL;
 }
 
+DEFINE_TRIVIAL_CLEANUP_FUNC(sd_event_source*, source_free);
+
 static sd_event_source* event_source_free(sd_event_source* s) {
     if (!s)
         return NULL;

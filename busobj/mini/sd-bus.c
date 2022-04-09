@@ -906,10 +906,10 @@ static int bus_write_message(sd_bus* bus, sd_bus_message* m, size_t* idx) {
     assert(bus);
     assert(m);
 
-    //r = bus_socket_write_message(bus, m, idx);
-    sd_bus_message_dump(m, NULL, SD_BUS_MESSAGE_DUMP_WITH_HEADER);
-    *idx = BUS_MESSAGE_SIZE(m); // update written size
-    r = 1;
+    r = bus_socket_write_message(bus, m, idx);
+    //sd_bus_message_dump(m, NULL, SD_BUS_MESSAGE_DUMP_WITH_HEADER);
+    //*idx = BUS_MESSAGE_SIZE(m); // update written size
+    //r = 1;
 
     if (r <= 0)
         return r;
@@ -933,7 +933,7 @@ static int bus_write_message(sd_bus* bus, sd_bus_message* m, size_t* idx) {
 
 _public_ int sd_bus_send(sd_bus* bus, sd_bus_message* _m, uint64_t* cookie) {
     // TODO...................    
-    printf("sd_bus_send: %s\n", _m->destination);
+    //printf("sd_bus_send: %s\n", _m->destination);
     
     _cleanup_(sd_bus_message_unrefp) sd_bus_message* m = sd_bus_message_ref(_m);
     int r;
@@ -1079,6 +1079,117 @@ static int timeout_compare(const void* a, const void* b) {
         return 1;
 
     return CMP(x->timeout_usec, y->timeout_usec);
+}
+
+static int bus_read_message(sd_bus* bus) {
+    assert(bus);
+
+    return bus_socket_read_message(bus);
+}
+
+static int dispatch_wqueue(sd_bus* bus) {
+    int r, ret = 0;
+
+    assert(bus);
+    //assert(IN_SET(bus->state, BUS_RUNNING, BUS_HELLO));
+    assert((bus->state == BUS_RUNNING || bus->state == BUS_HELLO));
+
+    while (bus->wqueue_size > 0) {
+
+        r = bus_write_message(bus, bus->wqueue[0], &bus->windex);
+        if (r < 0)
+            return r;
+        else if (r == 0)
+            /* Didn't do anything this time */
+            return ret;
+        else if (bus->windex >= BUS_MESSAGE_SIZE(bus->wqueue[0])) {
+            /* Fully written. Let's drop the entry from
+             * the queue.
+             *
+             * This isn't particularly optimized, but
+             * well, this is supposed to be our worst-case
+             * buffer only, and the socket buffer is
+             * supposed to be our primary buffer, and if
+             * it got full, then all bets are off
+             * anyway. */
+
+            bus->wqueue_size--;
+            bus_message_unref_queued(bus->wqueue[0], bus);
+            memmove(bus->wqueue, bus->wqueue + 1, sizeof(sd_bus_message*) * bus->wqueue_size);
+            bus->windex = 0;
+
+            ret = 1;
+        }
+    }
+
+    return ret;
+}
+
+static int bus_poll(sd_bus* bus, bool need_more, uint64_t timeout_usec) {
+    struct pollfd p[2] = { -1, -1 };
+    usec_t m = USEC_INFINITY;
+    int r, n;
+
+    assert(bus);
+
+    if (bus->state == BUS_CLOSING)
+        return 1;
+
+    if (!BUS_IS_OPEN(bus->state))
+        return -ENOTCONN;
+
+    if (bus->state == BUS_WATCH_BIND) {
+        assert(bus->inotify_fd >= 0);
+
+        p[0].events = POLLIN;
+        p[0].fd = bus->inotify_fd;
+        n = 1;
+    }
+    else {
+        int e;
+
+        e = sd_bus_get_events(bus);
+        if (e < 0)
+            return e;
+
+        if (need_more)
+            /* The caller really needs some more data, they don't
+             * care about what's already read, or any timeouts
+             * except its own. */
+            e |= POLLIN;
+        else {
+            usec_t until;
+            /* The caller wants to process if there's something to
+             * process, but doesn't care otherwise */
+
+            r = sd_bus_get_timeout(bus, &until);
+            if (r < 0)
+                return r;
+            if (r > 0)
+                m = usec_sub_unsigned(until, now(CLOCK_MONOTONIC));
+        }
+
+        p[0].fd = bus->input_fd;
+        if (bus->output_fd == bus->input_fd) {
+            p[0].events = e;
+            n = 1;
+        }
+        else {
+            p[0].events = e & POLLIN;
+            p[1].fd = bus->output_fd;
+            p[1].events = e & POLLOUT;
+            n = 2;
+        }
+    }
+
+    if (timeout_usec != UINT64_MAX && (m == USEC_INFINITY || timeout_usec < m))
+        m = timeout_usec;
+
+    r = ppoll_usec(p, n, m);
+    if (r <= 0)
+        return r;
+
+    return 1;
 }
 
 _public_ int sd_bus_call(
@@ -2050,72 +2161,7 @@ int bus_ensure_running(sd_bus* bus) {
     }
 }
 
-static int bus_poll(sd_bus* bus, bool need_more, uint64_t timeout_usec) {
-    struct pollfd p[2] = { -1, -1 };
-    usec_t m = USEC_INFINITY;
-    int r, n;
 
-    assert(bus);
-
-    if (bus->state == BUS_CLOSING)
-        return 1;
-
-    if (!BUS_IS_OPEN(bus->state))
-        return -ENOTCONN;
-
-    if (bus->state == BUS_WATCH_BIND) {
-        assert(bus->inotify_fd >= 0);
-
-        p[0].events = POLLIN;
-        p[0].fd = bus->inotify_fd;
-        n = 1;
-    }
-    else {
-        int e;
-
-        e = sd_bus_get_events(bus);
-        if (e < 0)
-            return e;
-
-        if (need_more)
-            /* The caller really needs some more data, they don't
-             * care about what's already read, or any timeouts
-             * except its own. */
-            e |= POLLIN;
-        else {
-            usec_t until;
-            /* The caller wants to process if there's something to
-             * process, but doesn't care otherwise */
-
-            r = sd_bus_get_timeout(bus, &until);
-            if (r < 0)
-                return r;
-            if (r > 0)
-                m = usec_sub_unsigned(until, now(CLOCK_MONOTONIC));
-        }
-
-        p[0].fd = bus->input_fd;
-        if (bus->output_fd == bus->input_fd) {
-            p[0].events = e;
-            n = 1;
-        }
-        else {
-            p[0].events = e & POLLIN;
-            p[1].fd = bus->output_fd;
-            p[1].events = e & POLLOUT;
-            n = 2;
-        }
-    }
-
-    if (timeout_usec != UINT64_MAX && (m == USEC_INFINITY || timeout_usec < m))
-        m = timeout_usec;
-
-    r = ppoll_usec(p, n, m);
-    if (r <= 0)
-        return r;
-
-    return 1;
-}
 
 _public_ int sd_bus_wait(sd_bus* bus, uint64_t timeout_usec) {
 
@@ -2229,43 +2275,7 @@ _public_ int sd_bus_negotiate_fds(sd_bus* bus, int b) {
     return 0;
 }
 
-static int dispatch_wqueue(sd_bus* bus) {
-    int r, ret = 0;
 
-    assert(bus);
-    //assert(IN_SET(bus->state, BUS_RUNNING, BUS_HELLO));
-    assert((bus->state == BUS_RUNNING || bus->state == BUS_HELLO));
-
-    while (bus->wqueue_size > 0) {
-
-        r = bus_write_message(bus, bus->wqueue[0], &bus->windex);
-        if (r < 0)
-            return r;
-        else if (r == 0)
-            /* Didn't do anything this time */
-            return ret;
-        else if (bus->windex >= BUS_MESSAGE_SIZE(bus->wqueue[0])) {
-            /* Fully written. Let's drop the entry from
-             * the queue.
-             *
-             * This isn't particularly optimized, but
-             * well, this is supposed to be our worst-case
-             * buffer only, and the socket buffer is
-             * supposed to be our primary buffer, and if
-             * it got full, then all bets are off
-             * anyway. */
-
-            bus->wqueue_size--;
-            bus_message_unref_queued(bus->wqueue[0], bus);
-            memmove(bus->wqueue, bus->wqueue + 1, sizeof(sd_bus_message*) * bus->wqueue_size);
-            bus->windex = 0;
-
-            ret = 1;
-        }
-    }
-
-    return ret;
-}
 
 _public_ int sd_bus_flush(sd_bus* bus) {
     int r;
@@ -2967,11 +2977,7 @@ static int dispatch_track(sd_bus* bus) {
     return 1;
 }
 
-static int bus_read_message(sd_bus* bus) {
-    assert(bus);
 
-    return bus_socket_read_message(bus);
-}
 
 
 

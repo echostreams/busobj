@@ -153,8 +153,8 @@ static int test_one(bool client_negotiate_unix_fds, bool server_negotiate_unix_f
 
     struct context c;
 #ifdef WIN32
-    HANDLE s;
-    DWORD dwThreadId;
+    HANDLE s[2];
+    DWORD dwThreadId[2];
 #else
     pthread_t s;
 #endif
@@ -171,7 +171,8 @@ static int test_one(bool client_negotiate_unix_fds, bool server_negotiate_unix_f
     c.server_anonymous_auth = server_anonymous_auth;
 
 #ifdef WIN32
-    s = _beginthread(server, 0, &c);
+    s[0] = _beginthread(server, 0, &c);
+    s[1] = _beginthread(client, 0, &c);
     /*
     s = CreateThread(NULL,      // default security attributes
         0,                      // use default stack size  
@@ -180,22 +181,33 @@ static int test_one(bool client_negotiate_unix_fds, bool server_negotiate_unix_f
         0,                      // use default creation flags 
         &dwThreadId);
     */
-    if (s == INVALID_HANDLE_VALUE)
+    if (s[0] == INVALID_HANDLE_VALUE)
         return -1;
-    Sleep(3000);
+    if (s[1] == INVALID_HANDLE_VALUE)
+        return -1;
+
 #else    
 
     r = pthread_create(&s, NULL, server, &c);
     if (r != 0)
         return -r;
-#endif
+
 
     r = client(&c);
 
+#endif
+
 #ifdef WIN32
-    WaitForSingleObject(s, INFINITE);
-    GetExitCodeThread(s, &p);
-    CloseHandle(s);
+    
+    
+    // Wait until all threads have terminated.
+
+    WaitForMultipleObjects(2, s, TRUE, INFINITE);
+    GetExitCodeThread(s[0], &r);
+    GetExitCodeThread(s[1], &p);
+    CloseHandle(s[0]);
+    CloseHandle(s[1]);
+
 #else
 
     q = pthread_join(s, &p);
@@ -235,6 +247,7 @@ int main(int argc, char* argv[]) {
     r = test_one(true, true, false, true);
     assert_se(r >= 0);
 
+    printf("=========================\n");
     r = test_one(true, true, true, false);
     assert_se(r == -EPERM);
 
