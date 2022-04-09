@@ -3208,9 +3208,106 @@ _public_ int sd_bus_detach_event(sd_bus* bus) {
     return 1;
 }
 
+static int io_callback(sd_event_source* s, int fd, uint32_t revents, void* userdata) {
+    sd_bus* bus = userdata;
+    int r;
+
+    assert(bus);
+
+    /* Note that this is called both on input_fd, output_fd as well as inotify_fd events */
+
+    r = sd_bus_process(bus, NULL);
+    if (r < 0) {
+        log_debug_errno(r, "Processing of bus failed, closing down: %m");
+        bus_enter_closing(bus);
+    }
+
+    return 1;
+}
+
+static int time_callback(sd_event_source* s, uint64_t usec, void* userdata) {
+    sd_bus* bus = userdata;
+    int r;
+
+    assert(bus);
+
+    r = sd_bus_process(bus, NULL);
+    if (r < 0) {
+        log_debug_errno(r, "Processing of bus failed, closing down: %m");
+        bus_enter_closing(bus);
+    }
+
+    return 1;
+}
+
+static int prepare_callback(sd_event_source* s, void* userdata) {
+    sd_bus* bus = userdata;
+    int r, e;
+    usec_t until;
+
+    assert(s);
+    assert(bus);
+
+    e = sd_bus_get_events(bus);
+    if (e < 0) {
+        r = e;
+        goto fail;
+    }
+
+    if (bus->output_fd != bus->input_fd) {
+
+        r = sd_event_source_set_io_events(bus->input_io_event_source, e & POLLIN);
+        if (r < 0)
+            goto fail;
+
+        r = sd_event_source_set_io_events(bus->output_io_event_source, e & POLLOUT);
+    }
+    else
+        r = sd_event_source_set_io_events(bus->input_io_event_source, e);
+    if (r < 0)
+        goto fail;
+
+    r = sd_bus_get_timeout(bus, &until);
+    if (r < 0)
+        goto fail;
+    if (r > 0) {
+        int j;
+
+        j = sd_event_source_set_time(bus->time_event_source, until);
+        if (j < 0) {
+            r = j;
+            goto fail;
+        }
+    }
+
+    r = sd_event_source_set_enabled(bus->time_event_source, r > 0);
+    if (r < 0)
+        goto fail;
+
+    return 1;
+
+fail:
+    log_debug_errno(r, "Preparing of bus events failed, closing down: %m");
+    bus_enter_closing(bus);
+
+    return 1;
+}
+
+static int quit_callback(sd_event_source* event, void* userdata) {
+    sd_bus* bus = userdata;
+
+    assert(event);
+
+    if (bus->close_on_exit) {
+        sd_bus_flush(bus);
+        sd_bus_close(bus);
+    }
+
+    return 1;
+}
+
 int bus_attach_io_events(sd_bus* bus) {
 
-#if ENABLE_IO_EVENTS
     int r;
 
     assert(bus);
@@ -3262,7 +3359,7 @@ int bus_attach_io_events(sd_bus* bus) {
         if (r < 0)
             return r;
     }
-#endif
+
     return 0;
 }
 

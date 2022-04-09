@@ -322,6 +322,7 @@ ssize_t recvmsg_safe(int sockfd, struct msghdr* msg, int flags) {
      *
      * Note that unlike our usual coding style this might modify *msg on failure. */
 #ifdef WIN32
+    WSAMSG* wmsg = (WSAMSG*)msg;
     LPFN_WSARECVMSG     lpfnWSARecvMsg = NULL;
     GUID                guidWSARecvMsg = WSAID_WSARECVMSG;
     DWORD               dwBytes = 0;
@@ -339,7 +340,7 @@ ssize_t recvmsg_safe(int sockfd, struct msghdr* msg, int flags) {
         ERR("WSAIoctl SIO_GET_EXTENSION_FUNCTION_POINTER");
         return -errno;
     }
-
+    /*
     if (SOCKET_ERROR == lpfnWSARecvMsg(sockfd,
             msg,
             &dwBytes,
@@ -352,6 +353,25 @@ ssize_t recvmsg_safe(int sockfd, struct msghdr* msg, int flags) {
             ERR("WSARecvMsg");
         }
     }
+    
+    
+    if (SOCKET_ERROR == WSARecv(sockfd, wmsg->lpBuffers, wmsg->dwBufferCount, &dwBytes, NULL, NULL, NULL))
+    {
+        ERR("WSARecv");
+        printf("WSARecv Bytes: %d\n", dwBytes);
+        for (int i = 0; i < dwBytes; i++) {
+            printf("%02x ", wmsg->lpBuffers->buf[i]);
+        }
+        printf("\n");
+    }
+    */
+
+    dwBytes = recv(sockfd, wmsg->lpBuffers->buf, wmsg->lpBuffers->len, /*flags*/0);
+    printf("recv bytes: %d\n", dwBytes);
+    for (int i = 0; i < dwBytes; i++) {
+        printf("%02x ", (int)wmsg->lpBuffers->buf[i]);
+    }
+    printf("\n");
     n = dwBytes;
 #else
     n = recvmsg(sockfd, msg, flags);

@@ -320,6 +320,7 @@ add_library(libsystemd-mini
 	"windows/win_clock_gettime.c"
 	"windows/socket.c"
 	"windows/posix.c"
+	"windows/wepoll/wepoll.c"
 
 	"systemd/src/busctl/busctl-introspect.c"
 
