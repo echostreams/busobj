@@ -7,9 +7,11 @@
 
 typedef int uid_t;
 typedef int gid_t;
+typedef int pid_t;
 
 typedef int shmatt_t;
 typedef int key_t;
+typedef int mode_t;
 
 struct ipc_perm
 {

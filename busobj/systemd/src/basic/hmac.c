@@ -14,10 +14,10 @@ void hmac_sha256(const void *key,
                  size_t key_size,
                  const void *input,
                  size_t input_size,
-                 uint8_t res[static SHA256_DIGEST_SIZE]) {
+                 uint8_t res[/*static*/ SHA256_DIGEST_SIZE]) {
 
-        uint8_t inner_padding[HMAC_BLOCK_SIZE] = { };
-        uint8_t outer_padding[HMAC_BLOCK_SIZE] = { };
+        uint8_t inner_padding[HMAC_BLOCK_SIZE] = { 0 };
+        uint8_t outer_padding[HMAC_BLOCK_SIZE] = { 0 };
         uint8_t replacement_key[SHA256_DIGEST_SIZE];
         struct sha256_ctx hash;
 

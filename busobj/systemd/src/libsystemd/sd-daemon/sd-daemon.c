@@ -226,8 +226,16 @@ static int sd_is_socket_internal(int fd, int type, int listening) {
                 int accepting = 0;
                 socklen_t l = sizeof(accepting);
 
-                if (getsockopt(fd, SOL_SOCKET, SO_ACCEPTCONN, &accepting, &l) < 0)
-                        return -errno;
+                if (getsockopt(fd, SOL_SOCKET, SO_ACCEPTCONN, &accepting, &l) < 0) 
+                {
+                    
+#ifndef WSL2
+                    return -errno;
+#else
+                    // will return INVAL on WSL
+                    printf("getsocketopt[SO_ACCEPTCONN]: %d\n", errno);
+#endif
+                }
 
                 if (l != sizeof(accepting))
                         return -EINVAL;

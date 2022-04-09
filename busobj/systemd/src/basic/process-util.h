@@ -57,10 +57,10 @@ int get_process_ppid(pid_t pid, pid_t *ret);
 int get_process_umask(pid_t pid, mode_t *ret);
 
 #ifdef WIN32
-typedef int siginfo_t;
+//typedef int siginfo_t;
 #endif
 
-int wait_for_terminate(pid_t pid, siginfo_t *status);
+//int wait_for_terminate(pid_t pid, siginfo_t *status);
 
 typedef enum WaitFlags {
         WAIT_LOG_ABNORMAL             = 1 << 0,

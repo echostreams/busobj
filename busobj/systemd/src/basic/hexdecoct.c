@@ -11,6 +11,12 @@
 #include "memory-util.h"
 #include "string-util.h"
 
+#ifdef WIN32
+# if !defined(SSIZE_MAX)
+#  define SSIZE_MAX (SIZE_MAX / 2 - 1)
+# endif /* defined(SSIZE_MAX) */
+#endif
+
 char octchar(int x) {
         return '0' + (x & 7);
 }
@@ -150,9 +156,11 @@ int unhexmem_full(const char *p, size_t l, bool secure, void **ret, size_t *ret_
 
         if (ret_len)
                 *ret_len = (size_t) (z - buf);
-        if (ret)
-                *ret = TAKE_PTR(buf);
-
+        if (ret) {
+            //*ret = TAKE_PTR(buf);
+            *ret = buf;
+            buf = NULL;
+        }
         return 0;
 
 on_failure:
@@ -512,7 +520,9 @@ int unbase32hexmem(const char *p, size_t l, bool padding, void **mem, size_t *_l
 
         *z = 0;
 
-        *mem = TAKE_PTR(r);
+        //*mem = TAKE_PTR(r);
+        *mem = r;
+        r = NULL;
         *_len = len;
 
         return 0;
@@ -663,7 +673,7 @@ static int base64_append_width(
         if (len <= 0)
                 return len;
 
-        lines = DIV_ROUND_UP(len, width);
+        lines = _DIV_ROUND_UP(len, width);
 
         if ((size_t) plen >= SSIZE_MAX - 1 - 1 ||
             lines > (SSIZE_MAX - plen - 1 - 1) / (indent + width + 1))
@@ -854,9 +864,11 @@ int unbase64mem_full(const char *p, size_t l, bool secure, void **ret, size_t *r
 
         if (ret_size)
                 *ret_size = (size_t) (z - buf);
-        if (ret)
-                *ret = TAKE_PTR(buf);
-
+        if (ret) {
+            //*ret = TAKE_PTR(buf);
+            *ret = buf;
+            buf = NULL;
+        }
         return 0;
 
 on_failure:

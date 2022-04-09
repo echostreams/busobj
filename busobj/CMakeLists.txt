@@ -19,6 +19,20 @@ if(WIN32)
 	get_win_hex(winver)
 	add_compile_definitions(_WIN32_WINNT=${winver})
 
+else()
+	# detect WSL
+	#CMAKE_SYSTEM_NAME:      Linux
+	#CMAKE_SYSTEM:           Linux-4.4.0-19041-Microsoft
+
+	if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+		string(FIND ${CMAKE_SYSTEM} "Microsoft" WSL)
+		if(WSL EQUAL -1)
+			remove_definitions(-DWSL2)
+		else()
+			add_definitions(-DWSL2)
+		endif()
+	
+	endif()
 endif()
 
 
@@ -252,12 +266,13 @@ add_library(libsystemd-mini
 	#"systemd/src/libsystemd/sd-bus/bus-message.c"
 	#"systemd/src/libsystemd/sd-bus/sd-bus.c"
 	"systemd/src/libsystemd/sd-bus/bus-dump.c"
-	#"systemd/src/libsystemd/sd-bus/bus-socket.c"
+	"systemd/src/libsystemd/sd-bus/bus-socket.c"
 	#"systemd/src/libsystemd/sd-bus/bus-creds.c"
 	"systemd/src/libsystemd/sd-bus/bus-track.c"
 
 	"mini/bus-message.c"
 	"mini/sd-bus.c"
+	"mini/sd-event.c"
 	"mini/hashmap.c"
 	"mini/fileio.c"
 	"mini/path-util.c"
@@ -269,6 +284,9 @@ add_library(libsystemd-mini
 	"mini/time-util.c"
 	"mini/locale-util.c"
 	"mini/tests.c"
+	"mini/fd-util.c"
+	"mini/socket-util.c"
+	"mini/user-util.c"
 
 	"systemd/src/basic/errno-list.c"
 	"systemd/src/basic/ordered-set.c"
@@ -277,13 +295,19 @@ add_library(libsystemd-mini
 	"systemd/src/basic/memory-util.c"
 	"systemd/src/basic/alloc-util.c"
 	"systemd/src/fundamental/string-util-fundamental.c"
+	"systemd/src/fundamental/sha256.c"
 	"systemd/src/shared/xml.c"
+	"systemd/src/basic/hmac.c"
 	"systemd/src/basic/glyph-util.c"
 	"systemd/src/basic/bus-label.c"
 	"systemd/src/basic/utf8.c"
 	"systemd/src/basic/gunicode.c"
 	"systemd/src/basic/prioq.c"
 	"systemd/src/basic/mempool.c"
+	"systemd/src/basic/io-util.c"
+	"systemd/src/basic/hexdecoct.c"
+	"systemd/src/basic/parse-util.c"
+	#"systemd/src/basic/socket-util.c"
 	#"systemd/src/shared/tests.c"
 	"systemd/src/shared/bus-object.c"
 	"systemd/src/shared/bus-print-properties.c"
@@ -294,6 +318,8 @@ add_library(libsystemd-mini
 	"windows/getuid.cpp"
 	"windows/mmap.c"
 	"windows/win_clock_gettime.c"
+	"windows/socket.c"
+	"windows/posix.c"
 
 	"systemd/src/busctl/busctl-introspect.c"
 
@@ -371,3 +397,8 @@ target_link_libraries(objmgr ${Boost_LIBRARIES} Boost::thread libsystemd-mini)
 
 add_executable (bus-server "bus-server.c")
 target_link_libraries(bus-server libsystemd-mini)
+if(WIN32)
+	target_link_libraries(bus-server ws2_32)
+else()
+	target_link_libraries(bus-server pthread)
+endif()

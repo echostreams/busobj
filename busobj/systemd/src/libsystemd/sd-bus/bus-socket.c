@@ -729,7 +729,7 @@ int bus_socket_start_auth(sd_bus *b) {
 }
 
 static int bus_socket_inotify_setup(sd_bus *b) {
-#if defined(__linux__)
+#if ENABLE_INOTIFY_SETUP
         _cleanup_free_ int *new_watches = NULL;
         _cleanup_free_ char *absolute = NULL;
         size_t n = 0, done = 0, i;
@@ -997,7 +997,7 @@ int bus_socket_connect(sd_bus *b) {
 }
 
 int bus_socket_exec(sd_bus *b) {
-#if defined(__linux__)
+#if ENABLE_SOCKET_EXEC
         int s[2], r;
 
         assert(b);

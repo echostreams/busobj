@@ -2,7 +2,9 @@
 
 #include <errno.h>
 #include <inttypes.h>
+#if defined(__linux__)
 #include <net/if.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
@@ -177,7 +179,8 @@ int parse_size(const char *t, uint64_t base, uint64_t *size) {
         unsigned n_entries, start_pos = 0;
 
         assert(t);
-        assert(IN_SET(base, 1000, 1024));
+        //assert(IN_SET(base, 1000, 1024));
+        assert((base == 1000 || base == 1024));
         assert(size);
 
         if (base == 1000) {
@@ -257,6 +260,7 @@ int parse_size(const char *t, uint64_t base, uint64_t *size) {
 }
 
 int parse_range(const char *t, unsigned *lower, unsigned *upper) {
+#if ENABLE_PARSE_RANGE
         _cleanup_free_ char *word = NULL;
         unsigned l, u;
         int r;
@@ -290,6 +294,7 @@ int parse_range(const char *t, unsigned *lower, unsigned *upper) {
 
         *lower = l;
         *upper = u;
+#endif
         return 0;
 }
 
@@ -324,13 +329,15 @@ static const char *mangle_base(const char *s, unsigned *base) {
                 return s;
 
         /* Support Python 3 style "0b" and 0x" prefixes, because they truly make sense, much more than C's "0" prefix for octal. */
-        k = STARTSWITH_SET(s, "0b", "0B");
+        //k = STARTSWITH_SET(s, "0b", "0B");
+        k = startswith(s, "0b") || startswith(s, "0B");
         if (k) {
                 *base = 2 | (*base & SAFE_ATO_ALL_FLAGS);
                 return k;
         }
 
-        k = STARTSWITH_SET(s, "0o", "0O");
+        //k = STARTSWITH_SET(s, "0o", "0O");
+        k = startswith(s, "0o") || startswith(s, "0O");
         if (k) {
                 *base = 8 | (*base & SAFE_ATO_ALL_FLAGS);
                 return k;
@@ -358,7 +365,9 @@ int safe_atou_full(const char *s, unsigned base, unsigned *ret_u) {
         s += strspn(s, WHITESPACE);
 
         if (FLAGS_SET(base, SAFE_ATO_REFUSE_PLUS_MINUS) &&
-            IN_SET(s[0], '+', '-'))
+            //IN_SET(s[0], '+', '-')
+            (s[0] == '+' || s[0] == '-')
+            )
                 return -EINVAL; /* Note that we check the "-" prefix again a second time below, but return a
                                  * different error. I.e. if the SAFE_ATO_REFUSE_PLUS_MINUS flag is set we
                                  * blanket refuse +/- prefixed integers, while if it is missing we'll just
@@ -429,7 +438,9 @@ int safe_atollu_full(const char *s, unsigned base, unsigned long long *ret_llu) 
         s += strspn(s, WHITESPACE);
 
         if (FLAGS_SET(base, SAFE_ATO_REFUSE_PLUS_MINUS) &&
-            IN_SET(s[0], '+', '-'))
+            //IN_SET(s[0], '+', '-')
+            (s[0] == '+' || s[0] == '-')
+            )
                 return -EINVAL;
 
         if (FLAGS_SET(base, SAFE_ATO_REFUSE_LEADING_ZERO) &&
@@ -516,7 +527,9 @@ int safe_atou16_full(const char *s, unsigned base, uint16_t *ret) {
         s += strspn(s, WHITESPACE);
 
         if (FLAGS_SET(base, SAFE_ATO_REFUSE_PLUS_MINUS) &&
-            IN_SET(s[0], '+', '-'))
+            //IN_SET(s[0], '+', '-')
+            (s[0] == '+' || s[0] == '-')
+            )
                 return -EINVAL;
 
         if (FLAGS_SET(base, SAFE_ATO_REFUSE_LEADING_ZERO) &&
@@ -568,6 +581,7 @@ int safe_atoi16(const char *s, int16_t *ret) {
 }
 
 int safe_atod(const char *s, double *ret_d) {
+#if defined(__linux__)
         _cleanup_(freelocalep) locale_t loc = (locale_t) 0;
         char *x = NULL;
         double d = 0;
@@ -587,7 +601,7 @@ int safe_atod(const char *s, double *ret_d) {
 
         if (ret_d)
                 *ret_d = (double) d;
-
+#endif
         return 0;
 }
 
@@ -632,10 +646,10 @@ int parse_nice(const char *p, int *ret) {
         r = safe_atoi(p, &n);
         if (r < 0)
                 return r;
-
+#if defined(__linux__)
         if (!nice_is_valid(n))
                 return -ERANGE;
-
+#endif
         *ret = n;
         return 0;
 }
@@ -693,6 +707,7 @@ int parse_ip_prefix_length(const char *s, int *ret) {
 }
 
 int parse_dev(const char *s, dev_t *ret) {
+#if defined(__linux__)
         const char *major;
         unsigned x, y;
         size_t n;
@@ -717,6 +732,7 @@ int parse_dev(const char *s, dev_t *ret) {
                 return -ERANGE;
 
         *ret = makedev(x, y);
+#endif
         return 0;
 }
 
@@ -729,10 +745,10 @@ int parse_oom_score_adjust(const char *s, int *ret) {
         r = safe_atoi(s, &v);
         if (r < 0)
                 return r;
-
+#if ENABLE_OOM_SCORE
         if (!oom_score_adjust_is_valid(v))
                 return -ERANGE;
-
+#endif
         *ret = v;
         return 0;
 }
@@ -744,7 +760,7 @@ int store_loadavg_fixed_point(unsigned long i, unsigned long f, loadavg_t *ret) 
                 return -ERANGE;
 
         i = i << LOADAVG_PRECISION_BITS;
-        f = DIV_ROUND_UP((f << LOADAVG_PRECISION_BITS), 100);
+        f = _DIV_ROUND_UP((f << LOADAVG_PRECISION_BITS), 100);
 
         if (f >= LOADAVG_FIXED_POINT_1_0)
                 return -ERANGE;
@@ -765,7 +781,7 @@ int parse_loadavg_fixed_point(const char *s, loadavg_t *ret) {
         if (!d)
                 return -EINVAL;
 
-        i_str = strndupa_safe(s, d - s);
+        i_str = __strndupa_safe(s, d - s);
         f_str = d + 1;
 
         r = safe_atolu_full(i_str, 10, &i);

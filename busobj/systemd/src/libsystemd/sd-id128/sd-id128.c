@@ -144,6 +144,7 @@ _public_ int sd_id128_get_boot(sd_id128_t *ret) {
 }
 
 static int get_invocation_from_keyring(sd_id128_t *ret) {
+#if defined(__linux__)
         _cleanup_free_ char *description = NULL;
         char *d, *p, *g, *u, *e;
         unsigned long perms;
@@ -238,7 +239,7 @@ static int get_invocation_from_keyring(sd_id128_t *ret) {
                 return -errno;
         if (c != sizeof(sd_id128_t))
                 return -EIO;
-
+#endif
         return 0;
 }
 

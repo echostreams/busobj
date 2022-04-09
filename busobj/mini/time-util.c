@@ -233,3 +233,19 @@ char* format_timestamp_style(
 #endif
     return buf;
 }
+
+struct timespec* timespec_store(struct timespec* ts, usec_t u) {
+    assert(ts);
+
+    if (u == USEC_INFINITY ||
+        u / USEC_PER_SEC >= TIME_T_MAX) {
+        ts->tv_sec = (time_t)-1;
+        ts->tv_nsec = -1L;
+        return ts;
+    }
+
+    ts->tv_sec = (time_t)(u / USEC_PER_SEC);
+    ts->tv_nsec = (long)((u % USEC_PER_SEC) * NSEC_PER_USEC);
+
+    return ts;
+}

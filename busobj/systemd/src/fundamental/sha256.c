@@ -30,6 +30,11 @@
 #include "macro-fundamental.h"
 #include "sha256.h"
 
+#ifdef WIN32
+#define __ORDER_LITTLE_ENDIAN__ 1234
+#define __BYTE_ORDER__ __ORDER_LITTLE_ENDIAN__
+#endif
+
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 # define SWAP(n)                                                        \
         (((n) << 24) | (((n) & 0xff00) << 8) | (((n) >> 8) & 0xff00) | ((n) >> 24))

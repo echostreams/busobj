@@ -260,6 +260,8 @@
                 (UNIQ_T(X, xq) / UNIQ_T(Y, yq) + !!(UNIQ_T(X, xq) % UNIQ_T(Y, yq))); \
         })
 
+#define _DIV_ROUND_UP(x, y) ((x) / (y) + !!((x) % (y)))
+
 #define CASE_F(X) case X:
 #define CASE_F_1(CASE, X) CASE_F(X)
 #define CASE_F_2(CASE, X, ...)  CASE(X) CASE_F_1(CASE, __VA_ARGS__)

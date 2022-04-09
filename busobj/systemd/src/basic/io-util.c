@@ -9,6 +9,16 @@
 #include "string-util.h"
 #include "time-util.h"
 
+#ifdef WIN32
+#define LINE_MAX 2048
+#if defined(_WIN64)
+#define SSIZE_MAX _I64_MAX
+#else
+#define SSIZE_MAX LONG_MAX
+#endif
+# define IOV_MAX 1024
+#endif
+
 int flush_fd(int fd) {
         int count = 0;
 
@@ -286,20 +296,26 @@ void iovw_free_contents(struct iovec_wrapper *iovw, bool free_vectors) {
                 for (size_t i = 0; i < iovw->count; i++)
                         free(iovw->iovec[i].iov_base);
 
-        iovw->iovec = mfree(iovw->iovec);
+        //iovw->iovec = mfree(iovw->iovec);
+        free(iovw->iovec);
+        iovw->iovec = NULL;
         iovw->count = 0;
 }
 
 struct iovec_wrapper *iovw_free_free(struct iovec_wrapper *iovw) {
         iovw_free_contents(iovw, true);
 
-        return mfree(iovw);
+        //return mfree(iovw);
+        free(iovw);
+        return NULL;
 }
 
 struct iovec_wrapper *iovw_free(struct iovec_wrapper *iovw) {
         iovw_free_contents(iovw, false);
 
-        return mfree(iovw);
+        //return mfree(iovw);
+        free(iovw);
+        return NULL;
 }
 
 int iovw_put(struct iovec_wrapper *iovw, void *data, size_t len) {
@@ -322,9 +338,10 @@ int iovw_put_string_field(struct iovec_wrapper *iovw, const char *field, const c
                 return -ENOMEM;
 
         r = iovw_put(iovw, x, strlen(x));
-        if (r >= 0)
-                TAKE_PTR(x);
-
+        if (r >= 0) {
+            //TAKE_PTR(x);
+            x = NULL;
+        }
         return r;
 }
 

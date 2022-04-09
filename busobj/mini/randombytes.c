@@ -375,3 +375,8 @@ int random_bytes(void* buf, size_t n)
 # error "randombytes(...) is not supported on this platform"
 #endif
 }
+
+int genuine_random_bytes(void* p, size_t n, int flags)
+{
+	return random_bytes(p, n);
+}
