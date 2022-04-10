@@ -163,7 +163,11 @@ static int test_one(bool client_negotiate_unix_fds, bool server_negotiate_unix_f
 
     zero(c);
 
+#ifdef WIN32
+    assert_se(socketpair(AF_INET, SOCK_STREAM, 0, c.fds) >= 0);
+#else
     assert_se(socketpair(AF_UNIX, SOCK_STREAM, 0, c.fds) >= 0);
+#endif
 
     c.client_negotiate_unix_fds = client_negotiate_unix_fds;
     c.server_negotiate_unix_fds = server_negotiate_unix_fds;
@@ -172,6 +176,7 @@ static int test_one(bool client_negotiate_unix_fds, bool server_negotiate_unix_f
 
 #ifdef WIN32
     s[0] = _beginthread(server, 0, &c);
+    //Sleep(10);
     s[1] = _beginthread(client, 0, &c);
     /*
     s = CreateThread(NULL,      // default security attributes
@@ -224,10 +229,9 @@ static int test_one(bool client_negotiate_unix_fds, bool server_negotiate_unix_f
     return 0;
 }
 
-int main(int argc, char* argv[]) {
+int test1()
+{
     int r;
-
-    log_set_max_level(LOG_DEBUG);
 
     r = test_one(true, true, false, false);
     assert_se(r >= 0);
@@ -252,4 +256,13 @@ int main(int argc, char* argv[]) {
     assert_se(r == -EPERM);
 
     return EXIT_SUCCESS;
+}
+
+int main(int argc, char* argv[]) {
+    log_set_max_level(LOG_DEBUG);
+    
+    struct context c;
+    assert_se(socketpair(AF_INET, SOCK_STREAM, 0, c.fds) >= 0);
+
+    return server(&c);
 }

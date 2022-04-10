@@ -54,6 +54,9 @@ int fd_nonblock(int fd, bool nonblock) {
 		printf("ioctlsocket failed with error: %ld\n", iResult);
 		return RET_NERRNO(iResult);
 	}
+
+	printf("Setting fd %d to non-blocking...\n", fd);
+
 	return 0;
 
 #else
