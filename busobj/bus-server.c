@@ -262,7 +262,11 @@ int main(int argc, char* argv[]) {
     log_set_max_level(LOG_DEBUG);
     
     struct context c;
+#ifdef WIN32
     assert_se(socketpair(AF_INET, SOCK_STREAM, 0, c.fds) >= 0);
+#else
+    assert_se(socketpair(AF_UNIX, SOCK_STREAM, 0, c.fds) >= 0);
+#endif
 
-    return server(&c);
+    return PTR_TO_INT(server(&c));
 }
