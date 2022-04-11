@@ -322,7 +322,10 @@ ssize_t recvmsg_safe(int sockfd, struct msghdr* msg, int flags) {
      *
      * Note that unlike our usual coding style this might modify *msg on failure. */
 #ifdef WIN32
+
     LPWSAMSG wmsg = (LPWSAMSG)msg;
+
+    /*
     LPFN_WSARECVMSG     lpfnWSARecvMsg = NULL;
     GUID                guidWSARecvMsg = WSAID_WSARECVMSG;
     DWORD               dwBytes = 0;
@@ -340,21 +343,26 @@ ssize_t recvmsg_safe(int sockfd, struct msghdr* msg, int flags) {
         ERR("WSAIoctl SIO_GET_EXTENSION_FUNCTION_POINTER");
         return -errno;
     }
-    /*
+    
     if (SOCKET_ERROR == lpfnWSARecvMsg(sockfd,
-            msg,
+            wmsg,
             &dwBytes,
             NULL,
             NULL
     ))
     {
-        if (WSA_IO_PENDING != WSAGetLastError())
+        int e = WSAGetLastError();
+        if (WSA_IO_PENDING != e)
         {
             ERR("WSARecvMsg");
         }
+        n = -e;
+    }
+    else {
+        n = dwBytes;
     }
     
-    
+    // try WSARecv
     if (SOCKET_ERROR == WSARecv(sockfd, wmsg->lpBuffers, wmsg->dwBufferCount, &dwBytes, NULL, NULL, NULL))
     {
         ERR("WSARecv");
@@ -374,16 +382,18 @@ ssize_t recvmsg_safe(int sockfd, struct msghdr* msg, int flags) {
         }
         printf("\n");
     }
-    else if (iResult == 0)
+    else if (iResult == 0) {
         printf("Connection closed\n");
+        iResult = -ECONNRESET;
+    }
     else {
         int e = WSAGetLastError();
-        printf("recv failed: %d\n", e);
+        printf("recv failed: %d, buf len: %d\n", e, wmsg->lpBuffers->len);
         if (e == WSAEWOULDBLOCK) {
             /*This error is returned from operations on nonblocking sockets 
             that cannot be completed immediately, for example recv when no data is queued to be read from the socket. 
             It is a nonfatal error, and the operation should be retried later.*/
-            iResult = -ENOTSOCK;
+            iResult = -EAGAIN;
         }
         else
         {
@@ -392,6 +402,7 @@ ssize_t recvmsg_safe(int sockfd, struct msghdr* msg, int flags) {
     }
 
     n = iResult;
+
     if (n < 0)
         return n;
 #else

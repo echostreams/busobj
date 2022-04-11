@@ -582,10 +582,12 @@ _dbus_poll(DBusPollFD* fds,
     {
         DBusPollFD* fdp = &fds[i];
 
-        if (fdp->events & _DBUS_POLLIN)
+        //if (fdp->events & _DBUS_POLLIN)
+        if (fdp->events & POLLIN)
             FD_SET(fdp->fd.sock, &read_set);
 
-        if (fdp->events & _DBUS_POLLOUT)
+        //if (fdp->events & _DBUS_POLLOUT)
+        if (fdp->events & POLLOUT)
             FD_SET(fdp->fd.sock, &write_set);
 
         FD_SET(fdp->fd.sock, &err_set);
@@ -638,13 +640,16 @@ _dbus_poll(DBusPollFD* fds,
                 fdp->revents = 0;
 
                 if (FD_ISSET(fdp->fd.sock, &read_set))
-                    fdp->revents |= _DBUS_POLLIN;
+                    //fdp->revents |= _DBUS_POLLIN;
+                    fdp->revents |= POLLIN;
 
                 if (FD_ISSET(fdp->fd.sock, &write_set))
-                    fdp->revents |= _DBUS_POLLOUT;
+                    //fdp->revents |= _DBUS_POLLOUT;
+                    fdp->revents |= POLLOUT;
 
                 if (FD_ISSET(fdp->fd.sock, &err_set))
-                    fdp->revents |= _DBUS_POLLERR;
+                    //fdp->revents |= _DBUS_POLLERR;
+                    fdp->revents |= POLLERR;
             }
         }
     return ready;
@@ -671,16 +676,18 @@ int ppoll(struct pollfd* fds, nfds_t nfds,
     const struct timespec* timeout_ts, const sigset_t* sigmask)
 {
     /*
-ready = ppoll(&fds, nfds, timeout_ts, &sigmask);
-is equivalent to atomically executing the following calls :
-sigset_t origmask;
-int timeout;
+    ready = ppoll(&fds, nfds, timeout_ts, &sigmask);
 
-timeout = (timeout_ts == NULL) ? -1 :
-    (timeout_ts.tv_sec * 1000 + timeout_ts.tv_nsec / 1000000);
-sigprocmask(SIG_SETMASK, &sigmask, &origmask);
-ready = poll(&fds, nfds, timeout);
-sigprocmask(SIG_SETMASK, &origmask, NULL);
+    is equivalent to atomically executing the following calls :
+    
+    sigset_t origmask;
+    int timeout;
+
+    timeout = (timeout_ts == NULL) ? -1 :
+        (timeout_ts.tv_sec * 1000 + timeout_ts.tv_nsec / 1000000);
+    sigprocmask(SIG_SETMASK, &sigmask, &origmask);
+    ready = poll(&fds, nfds, timeout);
+    sigprocmask(SIG_SETMASK, &origmask, NULL);
     */
 
     int timeout;
@@ -688,7 +695,20 @@ sigprocmask(SIG_SETMASK, &origmask, NULL);
     timeout = (timeout_ts == NULL) ? -1 :
         (timeout_ts->tv_sec * 1000 + timeout_ts->tv_nsec / 1000000);
 
-    return _dbus_poll(fds, nfds, timeout);
+    timeout = 10;
+
+    //return _dbus_poll(fds, nfds, timeout);
+    //printf("=== start of WSAPoll, timeout: %d\n", timeout);
+    int ret = WSAPoll(fds, nfds, timeout);
+    //printf("=== end of WSAPoll, return: %d\n", ret);
+
+    if (ret == 0) {
+        for (int i = 0; i < nfds; i++) {
+            printf("fds %d, %02x %x %x\n", i, fds[i].fd, fds[i].events, fds[i].revents);
+        }
+    }
+
+    return ret;
 }
 
 #endif // WIN32

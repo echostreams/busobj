@@ -10,6 +10,7 @@
 #endif
 #include <Windows.h>
 #include <process.h>    /* _beginthread, _endthread */
+int socketpair(int domain, int type, int protocol, int sv[2]);
 #endif
 
 #include <stdlib.h>
@@ -32,7 +33,12 @@ struct context {
     bool server_anonymous_auth;
 };
 
+#ifdef WIN32
+DWORD WINAPI server(void* p) {
+#else
 static void* server(void* p) {
+#endif
+
     struct context* c = p;
     sd_bus* bus = NULL;
     sd_id128_t id;
@@ -53,13 +59,20 @@ static void* server(void* p) {
         _cleanup_(sd_bus_message_unrefp) sd_bus_message* m = NULL, * reply = NULL;
 
         r = sd_bus_process(bus, &m);
+        //printf("*** sd_bus_process: %d\n", r);
         if (r < 0) {
+#if defined(__GNUC__)
             log_error_errno(r, "Failed to process requests: %m");
+#else
+            log_error_errno(r, "Failed to process requests: %s", strerror(abs(r)));
+#endif
             goto fail;
         }
 
         if (r == 0) {
+            printf("*** start of sd_bus_wait\n");
             r = sd_bus_wait(bus, UINT64_MAX);
+            printf("*** end of sd_bus_wait\n");
             if (r < 0) {
                 log_error_errno(r, "Failed to wait: %m");
                 goto fail;
@@ -114,8 +127,11 @@ fail:
         sd_bus_flush(bus);
         sd_bus_unref(bus);
     }
-
+#ifdef WIN32
+    return r;
+#else
     return INT_TO_PTR(r);
+#endif
 }
 
 static int client(struct context* c) {
@@ -153,12 +169,14 @@ static int test_one(bool client_negotiate_unix_fds, bool server_negotiate_unix_f
 
     struct context c;
 #ifdef WIN32
-    HANDLE s[2];
-    DWORD dwThreadId[2];
+    HANDLE s = INVALID_HANDLE_VALUE;
+    DWORD dwThreadId;
+    int p;
 #else
     pthread_t s;
-#endif
     void* p;
+#endif
+    
     int r, q;
 
     zero(c);
@@ -175,43 +193,34 @@ static int test_one(bool client_negotiate_unix_fds, bool server_negotiate_unix_f
     c.server_anonymous_auth = server_anonymous_auth;
 
 #ifdef WIN32
-    s[0] = _beginthread(server, 0, &c);
-    //Sleep(10);
-    s[1] = _beginthread(client, 0, &c);
-    /*
+    
     s = CreateThread(NULL,      // default security attributes
         0,                      // use default stack size  
         server,                 // thread function name
         &c,                     // argument to thread function 
         0,                      // use default creation flags 
         &dwThreadId);
-    */
-    if (s[0] == INVALID_HANDLE_VALUE)
+    
+    if (s == INVALID_HANDLE_VALUE)
         return -1;
-    if (s[1] == INVALID_HANDLE_VALUE)
-        return -1;
-
 #else    
 
     r = pthread_create(&s, NULL, server, &c);
     if (r != 0)
         return -r;
-
+#endif
 
     r = client(&c);
 
-#endif
 
 #ifdef WIN32
     
     
-    // Wait until all threads have terminated.
+    // Wait until threads have terminated.
 
-    WaitForMultipleObjects(2, s, TRUE, INFINITE);
-    GetExitCodeThread(s[0], &r);
-    GetExitCodeThread(s[1], &p);
-    CloseHandle(s[0]);
-    CloseHandle(s[1]);
+    q = WaitForSingleObject(s, INFINITE);
+    GetExitCodeThread(s, &p);
+    CloseHandle(s);
 
 #else
 
@@ -261,6 +270,7 @@ int test1()
 int main(int argc, char* argv[]) {
     log_set_max_level(LOG_DEBUG);
     
+    /*
     struct context c;
 #ifdef WIN32
     assert_se(socketpair(AF_INET, SOCK_STREAM, 0, c.fds) >= 0);
@@ -269,4 +279,7 @@ int main(int argc, char* argv[]) {
 #endif
 
     return PTR_TO_INT(server(&c));
+    */
+
+    return test1();
 }

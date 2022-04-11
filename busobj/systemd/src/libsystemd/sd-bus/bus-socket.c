@@ -404,6 +404,7 @@ static int bus_socket_auth_verify_server(sd_bus *b) {
         for (;;) {
                 /* Check if line is complete */
                 line = (char*) b->rbuffer + b->auth_rbegin;
+
                 e = memmem_safe(line, b->rbuffer_size - b->auth_rbegin, "\r\n", 2);
                 if (!e)
                         return processed;
@@ -536,6 +537,7 @@ static int bus_socket_read_auth(sd_bus *b) {
         assert(b->state == BUS_AUTHENTICATING);
 
         r = bus_socket_auth_verify(b);
+
         if (r != 0)
                 return r;
 
@@ -581,6 +583,7 @@ static int bus_socket_read_auth(sd_bus *b) {
 #endif
 
                 k = recvmsg_safe(b->input_fd, &mh, MSG_DONTWAIT|MSG_CMSG_CLOEXEC);
+
                 if (k == -ENOTSOCK) {
                         b->prefer_readv = true;
                         k = readv(b->input_fd, &iov, 1);
@@ -1238,8 +1241,13 @@ static int bus_socket_make_message(sd_bus *bus, size_t size) {
 }
 
 int bus_socket_read_message(sd_bus *bus) {
+#ifdef WIN32
+    WSAMSG mh;
+    WSABUF iov;
+#else
         struct msghdr mh;
         struct iovec iov = {NULL, 0};
+#endif
         ssize_t k;
         size_t need;
         int r;
@@ -1264,19 +1272,30 @@ int bus_socket_read_message(sd_bus *bus) {
 
         bus->rbuffer = b;
 
+#ifdef WIN32
+        iov.buf = ((uint8_t*)bus->rbuffer + bus->rbuffer_size);
+        iov.len = need - bus->rbuffer_size;
+#else
         iov = IOVEC_MAKE((uint8_t *)bus->rbuffer + bus->rbuffer_size, need - bus->rbuffer_size);
-
+#endif
         if (bus->prefer_readv) {
                 k = readv(bus->input_fd, &iov, 1);
                 if (k < 0)
                         k = -errno;
         } else {
+#ifdef WIN32
+            mh.lpBuffers = &iov;
+            mh.dwBufferCount = 1;
+            mh.Control.buf = &control;
+            mh.Control.len = sizeof(control);
+#else
                 mh = (struct msghdr) {
                         .msg_iov = &iov,
                         .msg_iovlen = 1,
                         .msg_control = &control,
                         .msg_controllen = sizeof(control),
                 };
+#endif
 
                 k = recvmsg_safe(bus->input_fd, &mh, MSG_DONTWAIT|MSG_CMSG_CLOEXEC);
                 if (k == -ENOTSOCK) {

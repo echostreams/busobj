@@ -1359,6 +1359,9 @@ ssize_t readv(int fildes, const struct iovec *iov, int iovcnt)
 			//return r;
 			return 0;
 		}
+		else if (r == 0) {
+			printf("***readv: 0\n");
+		}
 		t += r;
 		iov++;
 		iovcnt--;

@@ -230,6 +230,15 @@ inline int __log_full_errno_zerook(int level, int error, const char* format, ...
     return _e < 0 ? _e : -ESTRPIPE;                                
 }
 
+inline int __log_full_errno_zerook_v(int level, int error, const char* format, va_list ap)
+{
+    int _level = (level), _e = (error);
+    _e = (log_get_max_level() >= LOG_PRI(_level))
+        ? log_internalv(_level, _e, __FILE__, __LINE__, __func__, format, ap)
+        : -ERRNO_VALUE(_e);
+    return _e < 0 ? _e : -ESTRPIPE;
+}
+
 #if BUILD_MODE_DEVELOPER && !defined(TEST_CODE)
 #  define ASSERT_NON_ZERO(x) assert((x) != 0)
 #else
@@ -249,7 +258,9 @@ inline int __log_full_errno(int level, int error, const char* format, ...)
     va_start(ap, format);
     int _error = (error);                                   
     ASSERT_NON_ZERO(_error);                                
-    return __log_full_errno_zerook(level, _error, format, ap);
+    int ret = __log_full_errno_zerook_v(level, _error, format, ap);
+    va_end(ap);
+    return ret;
 }
 
 #if defined (__linux__)
