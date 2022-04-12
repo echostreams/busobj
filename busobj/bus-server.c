@@ -84,7 +84,7 @@ static void* server(void* p) {
         if (!m)
             continue;
 
-        log_info("Got message! member=%s", strna(sd_bus_message_get_member(m)));
+        log_info("[server] Got message! member=%s", strna(sd_bus_message_get_member(m)));
 
         if (sd_bus_message_is_method_call(m, "org.freedesktop.systemd.test", "Exit")) {
 
@@ -146,6 +146,25 @@ static int client(struct context* c) {
     assert_se(sd_bus_negotiate_fds(bus, c->client_negotiate_unix_fds) >= 0);
     assert_se(sd_bus_set_anonymous(bus, c->client_anonymous_auth) >= 0);
     assert_se(sd_bus_start(bus) >= 0);
+    
+    r = sd_bus_message_new_method_call(
+        bus,
+        &m,
+        "org.freedesktop.systemd.test",
+        "/",
+        "org.freedesktop.systemd.test",
+        "test");
+    if (r < 0)
+        return log_error_errno(r, "[client] Failed to allocate test call: %m");
+
+    r = sd_bus_call(bus, m, 0, &error, &reply);
+    //if (r < 0)
+    //    return log_error_errno(r, "[client] Failed to issue method call: %s", bus_error_message(&error, r));
+    
+    sd_bus_error_free(&error);
+    error = SD_BUS_ERROR_NULL;
+
+    printf(">>>> new method call...\n");
 
     r = sd_bus_message_new_method_call(
         bus,
@@ -155,11 +174,11 @@ static int client(struct context* c) {
         "org.freedesktop.systemd.test",
         "Exit");
     if (r < 0)
-        return log_error_errno(r, "Failed to allocate method call: %m");
+        return log_error_errno(r, "[client] Failed to allocate method call: %m");
 
     r = sd_bus_call(bus, m, 0, &error, &reply);
     if (r < 0)
-        return log_error_errno(r, "Failed to issue method call: %s", bus_error_message(&error, r));
+        return log_error_errno(r, "[client] Failed to issue method call: %s", bus_error_message(&error, r));
 
     return 0;
 }

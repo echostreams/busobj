@@ -379,6 +379,8 @@ out0:
     return FALSE;
 }
 
+#define DBUS_ENABLE_VERBOSE_MODE
+
 /**
  * Wrapper for poll().
  *
@@ -561,10 +563,12 @@ _dbus_poll(DBusPollFD* fds,
         DBusPollFD* fdp = &fds[i];
 
 
-        if (fdp->events & _DBUS_POLLIN)
+        //if (fdp->events & _DBUS_POLLIN)
+        if (fdp->events & POLLIN)
             msgp += sprintf(msgp, "R:%Iu ", fdp->fd.sock);
 
-        if (fdp->events & _DBUS_POLLOUT)
+        //if (fdp->events & _DBUS_POLLOUT)
+        if (fdp->events & POLLOUT)
             msgp += sprintf(msgp, "W:%Iu ", fdp->fd.sock);
 
         msgp += sprintf(msgp, "E:%Iu\n\t", fdp->fd.sock);
@@ -703,7 +707,8 @@ int ppoll(struct pollfd* fds, nfds_t nfds,
     //ret = WSAPoll(fds, nfds, timeout);
     //printf("=== end of WSAPoll, return: %d\n", ret);
 
-    ret = poll(fds, nfds, timeout);
+    //ret = poll(fds, nfds, timeout);
+    ret = fio_poll(fds, nfds, timeout);
 
     /*
     if (ret == 0) {

@@ -1355,17 +1355,23 @@ ssize_t readv(int fildes, const struct iovec *iov, int iovcnt)
 	{
 		r = recv((SOCKET)fildes, iov->iov_base, iov->iov_len, 0);
 		if (r < 0) {
-			printf("readv: %d %d\n", iovcnt, WSAGetLastError());
-			//return r;
-			return 0;
+			int e = WSAGetLastError();
+			printf("readv failed: %d\n", e);
+			if (e == WSAEWOULDBLOCK)
+				return -EAGAIN;
+			else
+				return -e;
 		}
 		else if (r == 0) {
-			printf("***readv: 0\n");
+			printf("readv connection closed\n");
+			return -ECONNRESET;
 		}
+
 		t += r;
 		iov++;
 		iovcnt--;
 	}
+	printf(">> readv recv %d\n", t);
 	return t;
 }
 
@@ -1378,6 +1384,9 @@ ssize_t writev(int fildes, const struct iovec *iov, int iovcnt)
 		int len;
 
 		len = send((SOCKET)fildes, iov[i].iov_base, iov[i].iov_len, 0);
+
+		printf(">> Sending fd: %d, iovcnt: %d, iovlen: %d, return %d\n", fildes, i, iov[i].iov_len, len);
+
 		if (len == SOCKET_ERROR) {
 			DWORD err = GetLastError();
 			errno = win_to_posix_error(err);

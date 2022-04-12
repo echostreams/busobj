@@ -1006,8 +1006,7 @@ _public_ int sd_bus_can_send(sd_bus* bus, char type) {
         if (!bus->accept_fd)
             return 0;
 
-        //r = bus_ensure_running(bus);
-        r = 1;
+        r = bus_ensure_running(bus);
         if (r < 0)
             return r;
 
@@ -1434,6 +1433,8 @@ _public_ int sd_bus_call(
 
     i = bus->rqueue_size;
 
+    printf(" >> sd_bus_call: requeue_size %d\n", bus->rqueue_size);
+    
     r = bus_seal_message(bus, m, usec);
     if (r < 0)
         goto fail;
