@@ -97,6 +97,8 @@ static inline ssize_t missing_getrandom(void *buffer, size_t count, unsigned fla
 
 /* ======================================================================= */
 
+#endif // #if defined(__linux__)
+
 /* The syscall has been defined since forever, but the glibc wrapper was missing. */
 #if !HAVE_GETTID
 static inline pid_t missing_gettid(void) {
@@ -115,7 +117,6 @@ static inline pid_t missing_gettid(void) {
 #  define gettid missing_gettid
 #endif
 
-#endif // #if defined(__linux__)
 
 /* ======================================================================= */
 

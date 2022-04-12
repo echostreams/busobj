@@ -168,47 +168,48 @@ getObject(const interface_map_type& interface_map, const std::string& path,
 }
 
 ///////
-char fake_unique_name[] = "1:0";
+//char fake_unique_name[] = "1:0";
 
-int sd_bus_list_names(sd_bus* bus, char*** acquired, char*** activatable)
-{
-	return 0;
-}
+//int sd_bus_list_names(sd_bus* bus, char*** acquired, char*** activatable)
+//{
+//	return 0;
+//}
 
-int sd_bus_request_name(sd_bus* bus, const char* name,
-	uint64_t flags) {
-	return 0;
-}
+//int sd_bus_request_name(sd_bus* bus, const char* name,
+//	uint64_t flags) {
+//	return 0;
+//}
 
-int sd_bus_get_unique_name(sd_bus* bus, const char** unique) {
-	*unique = fake_unique_name;
-	return 0;
-}
+//int sd_bus_get_unique_name(sd_bus* bus, const char** unique) {
+//	*unique = fake_unique_name;
+//	return 0;
+//}
 
-sd_event* sd_bus_get_event(sd_bus* bus) { return NULL; }
-int sd_bus_attach_event(sd_bus* bus, sd_event* e, int priority) { return 0; }
-int sd_bus_detach_event(sd_bus* bus) { return 0; }
-sd_bus* sd_bus_flush_close_unref(sd_bus* bus) { return NULL; }
-int sd_bus_flush(sd_bus* bus) { return 0; }
-int sd_bus_wait(sd_bus* bus, uint64_t timeout_usec) { return 0; }
-int sd_bus_get_fd(sd_bus* bus) { return 100; }
-int sd_bus_process(sd_bus* bus, sd_bus_message** r) { return 0; }
-void sd_bus_close(sd_bus* bus) {}
-int sd_bus_default(sd_bus** ret) {
-	sd_bus_new(ret);
-	return 0;
-}
+//sd_event* sd_bus_get_event(sd_bus* bus) { return NULL; }
+//int sd_bus_attach_event(sd_bus* bus, sd_event* e, int priority) { return 0; }
+//int sd_bus_detach_event(sd_bus* bus) { return 0; }
+//sd_bus* sd_bus_flush_close_unref(sd_bus* bus) { return NULL; }
+//int sd_bus_flush(sd_bus* bus) { return 0; }
+//int sd_bus_wait(sd_bus* bus, uint64_t timeout_usec) { return 0; }
+//int sd_bus_get_fd(sd_bus* bus) { return 100; }
+//int sd_bus_process(sd_bus* bus, sd_bus_message** r) { return 0; }
+//void sd_bus_close(sd_bus* bus) {}
+//int sd_bus_default(sd_bus** ret) {
+//	sd_bus_new(ret);
+//	return 0;
+//}
 //////
 
 extern "C" int bus_process_object(sd_bus * bus, sd_bus_message * m);
 extern "C" void bus_set_state(sd_bus * bus, /*enum bus_state*/int state);
 extern "C" void bus_message_set_sender_local(sd_bus * bus, sd_bus_message * m);
 extern "C" void bus_iteration_counter_increase(sd_bus * bus);
+extern "C" void log_set_max_level(int);
 
 int main(int argc, char** argv)
 {
 	boost::asio::io_context io;
-
+	log_set_max_level(7);
 	std::shared_ptr<sdbusplus::asio::connection> system_bus =
 		std::make_shared<sdbusplus::asio::connection>(io);
 
@@ -217,12 +218,13 @@ int main(int argc, char** argv)
 	// Construct a signal set registered for process termination.
 	boost::asio::signal_set signals(io, SIGINT, SIGTERM);
 	signals.async_wait(
-		[&io](const boost::system::error_code&, int) {
+		[&system_bus, &io](const boost::system::error_code&, int) {
 
 			std::cout << "io stop..." << std::endl;
-
+			
+			system_bus.get()->CloseSocket();
 			io.stop();
-
+			
 		});
 
 	interface_map_type interface_map;
@@ -240,14 +242,15 @@ int main(int argc, char** argv)
 
 
 	iface->initialize();
-
+	/*
 	io.post([&]() {
 		doListNames(io, interface_map, system_bus.get(), name_owners,
 			associationMaps, server);
 		});
-	
+	*/
 	system_bus->request_name("xyz.openbmc_project.ObjectMapper");
 
+#if 0
 	
 	// manually test
 	sdbusplus::bus::busp_t bus = system_bus->get_bus();
@@ -276,6 +279,7 @@ int main(int argc, char** argv)
 	bus_set_state(bus, /*BUS_RUNNING*/5);
 
 	bus_process_object(bus, m.get());
+#endif
 
 	io.run();
 

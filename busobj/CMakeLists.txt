@@ -262,12 +262,13 @@ add_library(libsystemd-mini
 	"systemd/src/libsystemd/sd-bus/bus-match.c"
 	"systemd/src/libsystemd/sd-bus/bus-gvariant.c"
 	"systemd/src/libsystemd/sd-bus/bus-convenience.c"
-	#"systemd/src/libsystemd/sd-bus/bus-control.c"
+	"systemd/src/libsystemd/sd-bus/bus-kernel.c"
+	"systemd/src/libsystemd/sd-bus/bus-control.c"
 	#"systemd/src/libsystemd/sd-bus/bus-message.c"
 	#"systemd/src/libsystemd/sd-bus/sd-bus.c"
 	"systemd/src/libsystemd/sd-bus/bus-dump.c"
 	"systemd/src/libsystemd/sd-bus/bus-socket.c"
-	#"systemd/src/libsystemd/sd-bus/bus-creds.c"
+	"systemd/src/libsystemd/sd-bus/bus-creds.c"
 	"systemd/src/libsystemd/sd-bus/bus-track.c"
 
 	"mini/bus-message.c"
@@ -287,6 +288,7 @@ add_library(libsystemd-mini
 	"mini/fd-util.c"
 	"mini/socket-util.c"
 	"mini/user-util.c"
+	"mini/process-util.c"
 
 	"systemd/src/basic/errno-list.c"
 	"systemd/src/basic/ordered-set.c"
@@ -321,6 +323,7 @@ add_library(libsystemd-mini
 	"windows/socket.c"
 	"windows/posix.c"
 	"windows/wepoll/wepoll.c"
+	"windows/poll.c"
 
 	"systemd/src/busctl/busctl-introspect.c"
 
@@ -349,7 +352,9 @@ target_link_libraries(test-busctl libsystemd-mini)
 target_link_libraries(test-bus-marshal libsystemd-mini)
 
 if(WIN32)
-	
+	target_link_libraries(test-vtable ws2_32)
+	target_link_libraries(test-busctl ws2_32)
+	target_link_libraries(test-bus-marshal ws2_32)
 else()
 	target_link_libraries(test-vtable pthread rt)
 	target_link_libraries(test-busctl pthread rt)
@@ -392,8 +397,11 @@ target_compile_features(objmgr PRIVATE cxx_std_20)
 if(MSVC)
 	target_compile_definitions(objmgr PRIVATE -D__EXCEPTIONS)
 	target_compile_options(objmgr PRIVATE /EHsc /W3)
+	target_link_libraries(objmgr ${Boost_LIBRARIES} Boost::thread libsystemd-mini)
+else()
+	target_link_libraries(objmgr ${Boost_LIBRARIES} Boost::thread libsystemd cap rt)
 endif()
-target_link_libraries(objmgr ${Boost_LIBRARIES} Boost::thread libsystemd-mini)
+
 
 
 add_executable (bus-server "bus-server.c")

@@ -1009,7 +1009,8 @@ bool pid_is_alive(pid_t pid) {
                 return true;
 
         r = get_process_state(pid);
-        if (IN_SET(r, -ESRCH, 'Z'))
+        //if (IN_SET(r, -ESRCH, 'Z'))
+        if ((r == -ESRCH || r == 'Z'))
                 return false;
 
         return true;

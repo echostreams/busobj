@@ -7,7 +7,9 @@
 
 #include <errno.h>
 #include <sched.h>
+#if defined(__linux__)
 #include <sys/syscall.h>
+#endif
 
 #include "log.h"
 #include "macro.h"

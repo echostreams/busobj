@@ -98,7 +98,9 @@ _public_ sd_bus_creds *sd_bus_creds_unref(sd_bus_creds *c) {
                         free(c->cgroup_root);
                         free(c->description);
 
-                        c->supplementary_gids = mfree(c->supplementary_gids);
+                        //c->supplementary_gids = mfree(c->supplementary_gids);
+                        free(c->supplementary_gids);
+                        c->supplementary_gids = NULL;
 
                         c->well_known_names = strv_free(c->well_known_names);
 
@@ -374,6 +376,7 @@ _public_ int sd_bus_creds_get_cgroup(sd_bus_creds *c, const char **ret) {
 }
 
 _public_ int sd_bus_creds_get_unit(sd_bus_creds *c, const char **ret) {
+#if defined(__linux__)
         int r;
 
         assert_return(c, -EINVAL);
@@ -397,10 +400,12 @@ _public_ int sd_bus_creds_get_unit(sd_bus_creds *c, const char **ret) {
         }
 
         *ret = c->unit;
+#endif
         return 0;
 }
 
 _public_ int sd_bus_creds_get_user_unit(sd_bus_creds *c, const char **ret) {
+#if defined(__linux__)
         int r;
 
         assert_return(c, -EINVAL);
@@ -424,10 +429,12 @@ _public_ int sd_bus_creds_get_user_unit(sd_bus_creds *c, const char **ret) {
         }
 
         *ret = c->user_unit;
+#endif
         return 0;
 }
 
 _public_ int sd_bus_creds_get_slice(sd_bus_creds *c, const char **ret) {
+#if defined(__linux__)
         int r;
 
         assert_return(c, -EINVAL);
@@ -451,10 +458,12 @@ _public_ int sd_bus_creds_get_slice(sd_bus_creds *c, const char **ret) {
         }
 
         *ret = c->slice;
+#endif
         return 0;
 }
 
 _public_ int sd_bus_creds_get_user_slice(sd_bus_creds *c, const char **ret) {
+#if defined(__linux__)
         int r;
 
         assert_return(c, -EINVAL);
@@ -478,10 +487,12 @@ _public_ int sd_bus_creds_get_user_slice(sd_bus_creds *c, const char **ret) {
         }
 
         *ret = c->user_slice;
+#endif
         return 0;
 }
 
 _public_ int sd_bus_creds_get_session(sd_bus_creds *c, const char **ret) {
+#if defined (__linux__)
         int r;
 
         assert_return(c, -EINVAL);
@@ -505,10 +516,14 @@ _public_ int sd_bus_creds_get_session(sd_bus_creds *c, const char **ret) {
         }
 
         *ret = c->session;
+#endif
         return 0;
 }
 
 _public_ int sd_bus_creds_get_owner_uid(sd_bus_creds *c, uid_t *uid) {
+#ifdef WIN32
+    return 0;
+#else
         const char *shifted;
         int r;
 
@@ -525,6 +540,7 @@ _public_ int sd_bus_creds_get_owner_uid(sd_bus_creds *c, uid_t *uid) {
                 return r;
 
         return cg_path_get_owner_uid(shifted, uid);
+#endif
 }
 
 _public_ int sd_bus_creds_get_cmdline(sd_bus_creds *c, char ***cmdline) {
@@ -652,6 +668,7 @@ _public_ int sd_bus_creds_get_description(sd_bus_creds *c, const char **ret) {
 }
 
 static int has_cap(sd_bus_creds *c, size_t offset, int capability) {
+#if defined(__linux__)
         size_t sz;
 
         assert(c);
@@ -665,12 +682,16 @@ static int has_cap(sd_bus_creds *c, size_t offset, int capability) {
 
         /* If the last cap is 63, then there are 64 caps defined, and we need 2 entries á 32bit hence. *
          * If the last cap is 64, then there are 65 caps defined, and we need 3 entries á 32bit hence. */
-        sz = DIV_ROUND_UP(lc+1, 32LU);
+        sz = _DIV_ROUND_UP(lc+1, 32LU);
 
         return !!(c->capability[offset * sz + CAP_TO_INDEX((uint32_t) capability)] & CAP_TO_MASK_CORRECTED((uint32_t) capability));
+#else
+    return 0;
+#endif
 }
 
 _public_ int sd_bus_creds_has_effective_cap(sd_bus_creds *c, int capability) {
+#if defined(__linux__)
         assert_return(c, -EINVAL);
         assert_return(capability >= 0, -EINVAL);
 
@@ -678,6 +699,9 @@ _public_ int sd_bus_creds_has_effective_cap(sd_bus_creds *c, int capability) {
                 return -ENODATA;
 
         return has_cap(c, CAP_OFFSET_EFFECTIVE, capability);
+#else
+    return 1;
+#endif
 }
 
 _public_ int sd_bus_creds_has_permitted_cap(sd_bus_creds *c, int capability) {
@@ -711,13 +735,14 @@ _public_ int sd_bus_creds_has_bounding_cap(sd_bus_creds *c, int capability) {
 }
 
 static int parse_caps(sd_bus_creds *c, unsigned offset, const char *p) {
+#if defined(__linux__)
         size_t sz, max;
         unsigned i, j;
 
         assert(c);
         assert(p);
 
-        max = DIV_ROUND_UP(cap_last_cap()+1, 32U);
+        max = _DIV_ROUND_UP(cap_last_cap()+1, 32U);
         p += strspn(p, WHITESPACE);
 
         sz = strlen(p);
@@ -749,7 +774,7 @@ static int parse_caps(sd_bus_creds *c, unsigned offset, const char *p) {
 
                 c->capability[offset * max + (sz - i - 1)] = v;
         }
-
+#endif
         return 0;
 }
 
@@ -793,7 +818,7 @@ int bus_creds_add_more(sd_bus_creds *c, uint64_t mask, pid_t pid, pid_t tid) {
                        SD_BUS_CREDS_SUPPLEMENTARY_GIDS |
                        SD_BUS_CREDS_EFFECTIVE_CAPS | SD_BUS_CREDS_INHERITABLE_CAPS |
                        SD_BUS_CREDS_PERMITTED_CAPS | SD_BUS_CREDS_BOUNDING_CAPS)) {
-
+#if defined(__linux__)
                 _cleanup_fclose_ FILE *f = NULL;
                 const char *p;
 
@@ -956,8 +981,9 @@ int bus_creds_add_more(sd_bus_creds *c, uint64_t mask, pid_t pid, pid_t tid) {
                                 }
                         }
                 }
+#endif
         }
-
+#if defined(__linux__)
         if (missing & SD_BUS_CREDS_SELINUX_CONTEXT) {
                 const char *p;
 
@@ -1103,7 +1129,7 @@ int bus_creds_add_more(sd_bus_creds *c, uint64_t mask, pid_t pid, pid_t tid) {
                 return -ESRCH;
 
         c->augmented = missing & c->mask;
-
+#endif
         return 0;
 }
 
@@ -1256,11 +1282,11 @@ int bus_creds_extend_by_pid(sd_bus_creds *c, uint64_t mask, sd_bus_creds **ret) 
 
                 n->mask |= mask & (SD_BUS_CREDS_CGROUP|SD_BUS_CREDS_SESSION|SD_BUS_CREDS_UNIT|SD_BUS_CREDS_USER_UNIT|SD_BUS_CREDS_SLICE|SD_BUS_CREDS_USER_SLICE|SD_BUS_CREDS_OWNER_UID);
         }
-
+#if defined(__linux__)
         if (c->mask & mask & (SD_BUS_CREDS_EFFECTIVE_CAPS|SD_BUS_CREDS_PERMITTED_CAPS|SD_BUS_CREDS_INHERITABLE_CAPS|SD_BUS_CREDS_BOUNDING_CAPS)) {
                 assert(c->capability);
 
-                n->capability = memdup(c->capability, DIV_ROUND_UP(cap_last_cap()+1, 32U) * 4 * 4);
+                n->capability = memdup(c->capability, _DIV_ROUND_UP(cap_last_cap()+1, 32U) * 4 * 4);
                 if (!n->capability)
                         return -ENOMEM;
 
@@ -1275,7 +1301,7 @@ int bus_creds_extend_by_pid(sd_bus_creds *c, uint64_t mask, sd_bus_creds **ret) 
                         return -ENOMEM;
                 n->mask |= SD_BUS_CREDS_SELINUX_CONTEXT;
         }
-
+#endif
         if (c->mask & mask & SD_BUS_CREDS_AUDIT_SESSION_ID) {
                 n->audit_session_id = c->audit_session_id;
                 n->mask |= SD_BUS_CREDS_AUDIT_SESSION_ID;
@@ -1333,7 +1359,9 @@ int bus_creds_extend_by_pid(sd_bus_creds *c, uint64_t mask, sd_bus_creds **ret) 
         if (r < 0)
                 return r;
 
-        *ret = TAKE_PTR(n);
+        //*ret = TAKE_PTR(n);
+        *ret = n;
+        n = NULL;
 
         return 0;
 }

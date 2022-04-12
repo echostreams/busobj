@@ -51,7 +51,7 @@ extern "C" {
         assert(fd >= 0);
 
 #ifdef WIN32
-        if (CloseHandle(fd))
+        if (CloseHandle((HANDLE)fd))
             return 0;
 #else
         if (close(fd) >= 0)
@@ -102,14 +102,7 @@ extern "C" {
 
         for (size_t i = 0; i < n_fd; i++)
             safe_close(fds[i]);
-    }
-
-    void close_and_munmap(int fd, void* address, size_t size) {
-        if (size > 0)
-            assert_se(munmap(address, PAGE_ALIGN(size)) >= 0);
-
-        safe_close(fd);
-    }
+    }      
 
     int fclose_nointr(FILE* f) {
         assert(f);

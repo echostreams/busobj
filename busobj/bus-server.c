@@ -70,9 +70,9 @@ static void* server(void* p) {
         }
 
         if (r == 0) {
-            printf("*** start of sd_bus_wait\n");
+            //printf("*** start of sd_bus_wait\n");
             r = sd_bus_wait(bus, UINT64_MAX);
-            printf("*** end of sd_bus_wait\n");
+            //printf("*** end of sd_bus_wait\n");
             if (r < 0) {
                 log_error_errno(r, "Failed to wait: %m");
                 goto fail;
@@ -182,7 +182,7 @@ static int test_one(bool client_negotiate_unix_fds, bool server_negotiate_unix_f
     zero(c);
 
 #ifdef WIN32
-    assert_se(socketpair(AF_INET, SOCK_STREAM, 0, c.fds) >= 0);
+    assert_se(socketpair(AF_UNIX, SOCK_STREAM, 0, c.fds) >= 0);
 #else
     assert_se(socketpair(AF_UNIX, SOCK_STREAM, 0, c.fds) >= 0);
 #endif

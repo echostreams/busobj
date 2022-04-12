@@ -56,6 +56,10 @@ class connection : public sdbusplus::bus_t
     {
 #if defined(__linux__)
         //socket.assign(get_fd());
+#else
+        socket.assign(
+            boost::asio::ip::tcp::v4(),
+            boost::asio::ip::tcp::socket::native_handle_type(get_fd()));
 #endif
         read_wait();
     }
@@ -63,7 +67,11 @@ class connection : public sdbusplus::bus_t
         sdbusplus::bus_t(bus), io_(io), socket(io_)
     {
 #if defined(__linux__)
-        //socket.assign(get_fd());
+        socket.assign(get_fd());
+#else
+        socket.assign(
+            boost::asio::ip::tcp::v4(),
+            boost::asio::ip::tcp::socket::native_handle_type(get_fd()));
 #endif
         read_wait();
     }
@@ -73,6 +81,11 @@ class connection : public sdbusplus::bus_t
         // sd_bus object to avoid a double close()  Ignore return codes here,
         // because there's nothing we can do about errors
         socket.release();
+    }
+
+    void CloseSocket()
+    {
+        socket.close();
     }
 
     /** @brief Perform an asynchronous send of a message, executing the handler

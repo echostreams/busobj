@@ -1395,7 +1395,7 @@ long long _strtoll(const char */*restrict*/ str, char** /*restrict*/ endptr, int
 	return _strtoi64(str, endptr, base);
 }
 
-int poll(struct pollfd fds[], nfds_t nfds, int timeout)
+int fio_poll(struct pollfd fds[], nfds_t nfds, int timeout)
 {
 	struct timeval tv;
 	struct timeval *to = NULL;

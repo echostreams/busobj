@@ -285,9 +285,9 @@ struct sd_bus {
          * a mutex. */
 #if defined(__linux__)
         pthread_mutex_t memfd_cache_mutex;
+#endif
         struct memfd_cache memfd_cache[MEMFD_CACHE_MAX];
         unsigned n_memfd_cache;
-#endif
 
         pid_t original_pid;
         pid_t busexec_pid;

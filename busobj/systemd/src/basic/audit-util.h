@@ -7,6 +7,11 @@
 
 #define AUDIT_SESSION_INVALID UINT32_MAX
 
+#ifdef WIN32
+typedef unsigned int pid_t;
+typedef unsigned int uid_t;
+#endif
+
 int audit_session_from_pid(pid_t pid, uint32_t *id);
 int audit_loginuid_from_pid(pid_t pid, uid_t *uid);
 

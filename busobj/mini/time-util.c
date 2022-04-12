@@ -249,3 +249,47 @@ struct timespec* timespec_store(struct timespec* ts, usec_t u) {
 
     return ts;
 }
+
+bool clock_boottime_supported(void) {
+    static int supported = -1;
+
+    /* Note that this checks whether CLOCK_BOOTTIME is available in general as well as available for timerfds()! */
+
+    if (supported < 0) {
+        int fd = -1;
+#if defined(__linux__)
+        fd = timerfd_create(CLOCK_BOOTTIME, TFD_NONBLOCK | TFD_CLOEXEC);
+#endif
+        if (fd < 0)
+            supported = false;
+        else {
+            safe_close(fd);
+            supported = true;
+        }
+    }
+
+    return supported;
+}
+
+bool clock_supported(clockid_t clock) {
+    struct timespec ts;
+
+    switch (clock) {
+
+    case CLOCK_MONOTONIC:
+    case CLOCK_REALTIME:
+        return true;
+
+    case CLOCK_BOOTTIME:
+        return clock_boottime_supported();
+
+    case CLOCK_BOOTTIME_ALARM:
+        if (!clock_boottime_supported())
+            return false;
+
+        _fallthrough_;
+    default:
+        /* For everything else, check properly */
+        return clock_gettime(clock, &ts) >= 0;
+    }
+}

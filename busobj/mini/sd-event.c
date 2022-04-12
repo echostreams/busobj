@@ -33,6 +33,8 @@
 #include <wepoll/wepoll.h>
 #endif
 
+#define DEFAULT_ACCURACY_USEC (250 * USEC_PER_MSEC)
+
 struct sd_event {
     unsigned n_ref;
 
@@ -99,12 +101,52 @@ struct sd_event {
     unsigned delays[sizeof(usec_t) * 8];
 };
 
-#define _EVENT_SOURCE_IS_TIME(t)                 \
-        ((t) ==      SOURCE_TIME_REALTIME ||            \
+#define _EVENT_SOURCE_IS_TIME(t)                   \
+        ((t) ==      SOURCE_TIME_REALTIME       || \
+         (t) ==      SOURCE_TIME_BOOTTIME       || \
+         (t) ==      SOURCE_TIME_MONOTONIC      || \
+         (t) ==      SOURCE_TIME_REALTIME_ALARM || \
+         (t) ==      SOURCE_TIME_BOOTTIME_ALARM)
+
+#define _EVENT_SOURCE_CAN_RATE_LIMIT(t)          \
+        ((t) ==      SOURCE_IO ||                       \
+         (t) ==      SOURCE_TIME_REALTIME ||            \
          (t) ==      SOURCE_TIME_BOOTTIME ||            \
          (t) ==      SOURCE_TIME_MONOTONIC ||           \
          (t) ==      SOURCE_TIME_REALTIME_ALARM ||      \
-         (t) ==      SOURCE_TIME_BOOTTIME_ALARM)
+         (t) ==      SOURCE_TIME_BOOTTIME_ALARM ||      \
+         (t) ==      SOURCE_SIGNAL ||                   \
+         (t) ==      SOURCE_DEFER ||                    \
+         (t) ==      SOURCE_INOTIFY)
+
+/* This is used to assert that we didn't pass an unexpected source type to event_source_time_prioq_put().
+ * Time sources and ratelimited sources can be passed, so effectively this is the same as the
+ * EVENT_SOURCE_CAN_RATE_LIMIT() macro. */
+#define EVENT_SOURCE_USES_TIME_PRIOQ(t) _EVENT_SOURCE_CAN_RATE_LIMIT(t)
+
+static EventSourceType clock_to_event_source_type(clockid_t clock) {
+
+    switch (clock) {
+
+    case CLOCK_REALTIME:
+        return SOURCE_TIME_REALTIME;
+
+    case CLOCK_BOOTTIME:
+        return SOURCE_TIME_BOOTTIME;
+
+    case CLOCK_MONOTONIC:
+        return SOURCE_TIME_MONOTONIC;
+
+    case CLOCK_REALTIME_ALARM:
+        return SOURCE_TIME_REALTIME_ALARM;
+
+    case CLOCK_BOOTTIME_ALARM:
+        return SOURCE_TIME_BOOTTIME_ALARM;
+
+    default:
+        return _SOURCE_EVENT_SOURCE_TYPE_INVALID;
+    }
+}
 
 static bool event_source_is_online(sd_event_source* s) {
     assert(s);
@@ -510,9 +552,172 @@ static sd_event_source* event_source_free(sd_event_source* s) {
     return NULL;
 }
 
+static int pending_prioq_compare(const void* a, const void* b) {
+    const sd_event_source* x = a, * y = b;
+    int r;
+
+    assert(x->pending);
+    assert(y->pending);
+
+    /* Enabled ones first */
+    r = CMP(x->enabled == SD_EVENT_OFF, y->enabled == SD_EVENT_OFF);
+    if (r != 0)
+        return r;
+
+    /* Non rate-limited ones first. */
+    r = CMP(!!x->ratelimited, !!y->ratelimited);
+    if (r != 0)
+        return r;
+
+    /* Lower priority values first */
+    r = CMP(x->priority, y->priority);
+    if (r != 0)
+        return r;
+
+    /* Older entries first */
+    return CMP(x->pending_iteration, y->pending_iteration);
+}
+
+static int prepare_prioq_compare(const void* a, const void* b) {
+    const sd_event_source* x = a, * y = b;
+    int r;
+
+    assert(x->prepare);
+    assert(y->prepare);
+
+    /* Enabled ones first */
+    r = CMP(x->enabled == SD_EVENT_OFF, y->enabled == SD_EVENT_OFF);
+    if (r != 0)
+        return r;
+
+    /* Non rate-limited ones first. */
+    r = CMP(!!x->ratelimited, !!y->ratelimited);
+    if (r != 0)
+        return r;
+
+    /* Move most recently prepared ones last, so that we can stop
+     * preparing as soon as we hit one that has already been
+     * prepared in the current iteration */
+    r = CMP(x->prepare_iteration, y->prepare_iteration);
+    if (r != 0)
+        return r;
+
+    /* Lower priority values first */
+    return CMP(x->priority, y->priority);
+}
+
+
+_public_ int sd_event_new(sd_event** ret) {
+    sd_event* e;
+    int r;
+
+    assert_return(ret, -EINVAL);
+
+    e = new(sd_event, 1);
+    if (!e)
+        return -ENOMEM;
+
+    *e = (sd_event){
+            .n_ref = 1,
+            .epoll_fd = -1,
+            .watchdog_fd = -1,
+            .realtime.wakeup = WAKEUP_CLOCK_DATA,
+            .realtime.fd = -1,
+            .realtime.next = USEC_INFINITY,
+            .boottime.wakeup = WAKEUP_CLOCK_DATA,
+            .boottime.fd = -1,
+            .boottime.next = USEC_INFINITY,
+            .monotonic.wakeup = WAKEUP_CLOCK_DATA,
+            .monotonic.fd = -1,
+            .monotonic.next = USEC_INFINITY,
+            .realtime_alarm.wakeup = WAKEUP_CLOCK_DATA,
+            .realtime_alarm.fd = -1,
+            .realtime_alarm.next = USEC_INFINITY,
+            .boottime_alarm.wakeup = WAKEUP_CLOCK_DATA,
+            .boottime_alarm.fd = -1,
+            .boottime_alarm.next = USEC_INFINITY,
+            .perturb = USEC_INFINITY,
+            .original_pid = getpid_cached(),
+    };
+
+    r = prioq_ensure_allocated(&e->pending, pending_prioq_compare);
+    if (r < 0)
+        goto fail;
+
+#ifdef WIN32
+    e->epoll_fd = epoll_create1(0);
+#else
+    e->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
+#endif
+    if (e->epoll_fd < 0) {
+        r = -errno;
+        goto fail;
+    }
+
+    e->epoll_fd = fd_move_above_stdio(e->epoll_fd);
+
+    if (secure_getenv("SD_EVENT_PROFILE_DELAYS")) {
+        log_debug("Event loop profiling enabled. Logarithmic histogram of event loop iterations in the range 2^0 … 2^63 us will be logged every 5s.");
+        e->profile_delays = true;
+    }
+
+    *ret = e;
+    return 0;
+
+fail:
+    event_free(e);
+    return r;
+}
+
 DEFINE_PUBLIC_TRIVIAL_REF_UNREF_FUNC(sd_event_source, sd_event_source, event_source_free);
 
 DEFINE_PUBLIC_TRIVIAL_REF_UNREF_FUNC(sd_event, sd_event, event_free);
+
+static struct clock_data* event_get_clock_data(sd_event* e, EventSourceType t) {
+    assert(e);
+
+    switch (t) {
+
+    case SOURCE_TIME_REALTIME:
+        return &e->realtime;
+
+    case SOURCE_TIME_BOOTTIME:
+        return &e->boottime;
+
+    case SOURCE_TIME_MONOTONIC:
+        return &e->monotonic;
+
+    case SOURCE_TIME_REALTIME_ALARM:
+        return &e->realtime_alarm;
+
+    case SOURCE_TIME_BOOTTIME_ALARM:
+        return &e->boottime_alarm;
+
+    default:
+        return NULL;
+    }
+}
+
+static void event_source_time_prioq_reshuffle(sd_event_source* s) {
+    struct clock_data* d;
+
+    assert(s);
+
+    /* Called whenever the event source's timer ordering properties changed, i.e. time, accuracy,
+     * pending, enable state, and ratelimiting state. Makes sure the two prioq's are ordered
+     * properly again. */
+
+    if (s->ratelimited)
+        d = &s->event->monotonic;
+    else if (_EVENT_SOURCE_IS_TIME(s->type))
+        assert_se(d = event_get_clock_data(s->event, s->type));
+    else
+        return; /* no-op for an event source which is neither a timer nor ratelimited. */
+
+    prioq_reshuffle(d->earliest, s, &s->earliest_index);
+    prioq_reshuffle(d->latest, s, &s->latest_index);
+    d->needs_rearm = true;
+}
 
 static int source_set_pending(sd_event_source* s, bool b) {
     int r;
@@ -537,8 +742,8 @@ static int source_set_pending(sd_event_source* s, bool b) {
     else
         assert_se(prioq_remove(s->event->pending, s, &s->pending_index));
 
-    //if (_EVENT_SOURCE_IS_TIME(s->type))
-    //    event_source_time_prioq_reshuffle(s);
+    if (_EVENT_SOURCE_IS_TIME(s->type))
+        event_source_time_prioq_reshuffle(s);
 
     if (s->type == SOURCE_SIGNAL && !b) {
         struct signal_data* d;
@@ -692,33 +897,6 @@ _public_ int sd_event_source_set_io_fd(sd_event_source* s, int fd) {
     return 0;
 }
 
-static int prepare_prioq_compare(const void* a, const void* b) {
-    const sd_event_source* x = a, * y = b;
-    int r;
-
-    assert(x->prepare);
-    assert(y->prepare);
-
-    /* Enabled ones first */
-    r = CMP(x->enabled == SD_EVENT_OFF, y->enabled == SD_EVENT_OFF);
-    if (r != 0)
-        return r;
-
-    /* Non rate-limited ones first. */
-    r = CMP(!!x->ratelimited, !!y->ratelimited);
-    if (r != 0)
-        return r;
-
-    /* Move most recently prepared ones last, so that we can stop
-     * preparing as soon as we hit one that has already been
-     * prepared in the current iteration */
-    r = CMP(x->prepare_iteration, y->prepare_iteration);
-    if (r != 0)
-        return r;
-
-    /* Lower priority values first */
-    return CMP(x->priority, y->priority);
-}
 
 
 _public_ int sd_event_source_set_prepare(sd_event_source* s, sd_event_handler_t callback) {
@@ -766,28 +944,6 @@ static void event_source_pp_prioq_reshuffle(sd_event_source* s) {
     if (s->prepare)
         prioq_reshuffle(s->event->prepare, s, &s->prepare_index);
 }
-
-static void event_source_time_prioq_reshuffle(sd_event_source* s) {
-    struct clock_data* d;
-
-    assert(s);
-
-    /* Called whenever the event source's timer ordering properties changed, i.e. time, accuracy,
-     * pending, enable state, and ratelimiting state. Makes sure the two prioq's are ordered
-     * properly again. */
-
-    if (s->ratelimited)
-        d = &s->event->monotonic;
-    //else if (_EVENT_SOURCE_IS_TIME(s->type))
-    //    assert_se(d = event_get_clock_data(s->event, s->type));
-    else
-        return; /* no-op for an event source which is neither a timer nor ratelimited. */
-
-    prioq_reshuffle(d->earliest, s, &s->earliest_index);
-    prioq_reshuffle(d->latest, s, &s->latest_index);
-    d->needs_rearm = true;
-}
-
 
 _public_ int sd_event_source_set_priority(sd_event_source* s, int64_t priority) {
     bool rm_inotify = false, rm_inode = false;
@@ -1151,6 +1307,290 @@ _public_ int sd_event_source_set_time(sd_event_source* s, uint64_t usec) {
     s->time.next = usec;
 
     event_source_time_prioq_reshuffle(s);
+    return 0;
+}
+
+_public_ int sd_event_default(sd_event** ret) {
+    sd_event* e = NULL;
+    int r;
+
+    if (!ret)
+        return !!default_event;
+
+    if (default_event) {
+        *ret = sd_event_ref(default_event);
+        return 0;
+    }
+
+    r = sd_event_new(&e);
+    if (r < 0)
+        return r;
+
+    e->default_event_ptr = &default_event;
+    e->tid = gettid();
+    default_event = e;
+
+    *ret = e;
+    return 1;
+}
+
+static usec_t time_event_source_next(const sd_event_source* s) {
+    assert(s);
+
+    /* We have two kinds of event sources that have elapsation times associated with them: the actual
+     * time based ones and the ones for which a ratelimit can be in effect (where we want to be notified
+     * once the ratelimit time window ends). Let's return the next elapsing time depending on what we are
+     * looking at here. */
+
+    if (s->ratelimited) { /* If rate-limited the next elapsation is when the ratelimit time window ends */
+        assert(s->rate_limit.begin != 0);
+        assert(s->rate_limit.interval != 0);
+        return usec_add(s->rate_limit.begin, s->rate_limit.interval);
+    }
+
+    /* Otherwise this must be a time event source, if not ratelimited */
+    if (_EVENT_SOURCE_IS_TIME(s->type))
+        return s->time.next;
+
+    return USEC_INFINITY;
+}
+
+static usec_t time_event_source_latest(const sd_event_source* s) {
+    assert(s);
+
+    if (s->ratelimited) { /* For ratelimited stuff the earliest and the latest time shall actually be the
+                           * same, as we should avoid adding additional inaccuracy on an inaccuracy time
+                           * window */
+        assert(s->rate_limit.begin != 0);
+        assert(s->rate_limit.interval != 0);
+        return usec_add(s->rate_limit.begin, s->rate_limit.interval);
+    }
+
+    /* Must be a time event source, if not ratelimited */
+    if (_EVENT_SOURCE_IS_TIME(s->type))
+        return usec_add(s->time.next, s->time.accuracy);
+
+    return USEC_INFINITY;
+}
+
+static bool event_source_timer_candidate(const sd_event_source* s) {
+    assert(s);
+
+    /* Returns true for event sources that either are not pending yet (i.e. where it's worth to mark them pending)
+     * or which are currently ratelimited (i.e. where it's worth leaving the ratelimited state) */
+    return !s->pending || s->ratelimited;
+}
+
+static int time_prioq_compare(const void* a, const void* b, usec_t(*time_func)(const sd_event_source* s)) {
+    const sd_event_source* x = a, * y = b;
+    int r;
+
+    /* Enabled ones first */
+    r = CMP(x->enabled == SD_EVENT_OFF, y->enabled == SD_EVENT_OFF);
+    if (r != 0)
+        return r;
+
+    /* Order "non-pending OR ratelimited" before "pending AND not-ratelimited" */
+    r = CMP(!event_source_timer_candidate(x), !event_source_timer_candidate(y));
+    if (r != 0)
+        return r;
+
+    /* Order by time */
+    return CMP(time_func(x), time_func(y));
+}
+
+static int earliest_time_prioq_compare(const void* a, const void* b) {
+    return time_prioq_compare(a, b, time_event_source_next);
+}
+
+static int latest_time_prioq_compare(const void* a, const void* b) {
+    return time_prioq_compare(a, b, time_event_source_latest);
+}
+
+static int event_setup_timer_fd(
+    sd_event* e,
+    struct clock_data* d,
+    clockid_t clock) {
+
+    assert(e);
+    assert(d);
+
+    if (_likely_(d->fd >= 0))
+        return 0;
+
+    _cleanup_close_ int fd = -1;
+#if defined(__linux__)
+    fd = timerfd_create(clock, TFD_NONBLOCK | TFD_CLOEXEC);
+#endif
+    if (fd < 0)
+        return -errno;
+
+    fd = fd_move_above_stdio(fd);
+
+    struct epoll_event ev = {
+            .events = EPOLLIN,
+            .data.ptr = d,
+    };
+
+    if (epoll_ctl(e->epoll_fd, EPOLL_CTL_ADD, fd, &ev) < 0)
+        return -errno;
+
+    //d->fd = TAKE_FD(fd);
+    d->fd = fd;
+    fd = -1;
+
+    return 0;
+}
+
+static int time_exit_callback(sd_event_source* s, uint64_t usec, void* userdata) {
+    assert(s);
+
+    return sd_event_exit(sd_event_source_get_event(s), PTR_TO_INT(userdata));
+}
+
+static int setup_clock_data(sd_event* e, struct clock_data* d, clockid_t clock) {
+    int r;
+
+    assert(d);
+
+    if (d->fd < 0) {
+        r = event_setup_timer_fd(e, d, clock);
+        if (r < 0)
+            return r;
+    }
+
+    r = prioq_ensure_allocated(&d->earliest, earliest_time_prioq_compare);
+    if (r < 0)
+        return r;
+
+    r = prioq_ensure_allocated(&d->latest, latest_time_prioq_compare);
+    if (r < 0)
+        return r;
+
+    return 0;
+}
+
+static int event_source_time_prioq_put(
+    sd_event_source* s,
+    struct clock_data* d) {
+
+    int r;
+
+    assert(s);
+    assert(d);
+    assert(EVENT_SOURCE_USES_TIME_PRIOQ(s->type));
+
+    r = prioq_put(d->earliest, s, &s->earliest_index);
+    if (r < 0)
+        return r;
+
+    r = prioq_put(d->latest, s, &s->latest_index);
+    if (r < 0) {
+        assert_se(prioq_remove(d->earliest, s, &s->earliest_index) > 0);
+        s->earliest_index = PRIOQ_IDX_NULL;
+        return r;
+    }
+
+    d->needs_rearm = true;
+    return 0;
+}
+
+_public_ int sd_event_add_time(
+    sd_event* e,
+    sd_event_source** ret,
+    clockid_t clock,
+    uint64_t usec,
+    uint64_t accuracy,
+    sd_event_time_handler_t callback,
+    void* userdata) {
+
+    EventSourceType type;
+    _cleanup_(source_freep) sd_event_source* s = NULL;
+    struct clock_data* d;
+    int r;
+
+    assert_return(e, -EINVAL);
+    assert_return(e = event_resolve(e), -ENOPKG);
+    assert_return(accuracy != UINT64_MAX, -EINVAL);
+    assert_return(e->state != SD_EVENT_FINISHED, -ESTALE);
+    assert_return(!event_pid_changed(e), -ECHILD);
+
+    if (!clock_supported(clock)) /* Checks whether the kernel supports the clock */
+        return -EOPNOTSUPP;
+
+    type = clock_to_event_source_type(clock); /* checks whether sd-event supports this clock */
+    if (type < 0)
+        return -EOPNOTSUPP;
+
+    if (!callback)
+        callback = time_exit_callback;
+
+    assert_se(d = event_get_clock_data(e, type));
+
+    r = setup_clock_data(e, d, clock);
+    if (r < 0)
+        return r;
+
+    s = source_new(e, !ret, type);
+    if (!s)
+        return -ENOMEM;
+
+    s->time.next = usec;
+    s->time.accuracy = accuracy == 0 ? DEFAULT_ACCURACY_USEC : accuracy;
+    s->time.callback = callback;
+    s->earliest_index = s->latest_index = PRIOQ_IDX_NULL;
+    s->userdata = userdata;
+    s->enabled = SD_EVENT_ONESHOT;
+
+    r = event_source_time_prioq_put(s, d);
+    if (r < 0)
+        return r;
+
+    if (ret)
+        *ret = s;
+    //TAKE_PTR(s);
+    s = NULL;
+
+    return 0;
+}
+
+_public_ int sd_event_add_exit(
+    sd_event* e,
+    sd_event_source** ret,
+    sd_event_handler_t callback,
+    void* userdata) {
+
+    _cleanup_(source_freep) sd_event_source* s = NULL;
+    int r;
+
+    assert_return(e, -EINVAL);
+    assert_return(e = event_resolve(e), -ENOPKG);
+    assert_return(callback, -EINVAL);
+    assert_return(e->state != SD_EVENT_FINISHED, -ESTALE);
+    assert_return(!event_pid_changed(e), -ECHILD);
+
+    r = prioq_ensure_allocated(&e->exit, exit_prioq_compare);
+    if (r < 0)
+        return r;
+
+    s = source_new(e, !ret, SOURCE_EXIT);
+    if (!s)
+        return -ENOMEM;
+
+    s->exit.callback = callback;
+    s->userdata = userdata;
+    s->exit.prioq_index = PRIOQ_IDX_NULL;
+    s->enabled = SD_EVENT_ONESHOT;
+
+    r = prioq_put(s->event->exit, s, &s->exit.prioq_index);
+    if (r < 0)
+        return r;
+
+    if (ret)
+        *ret = s;
+    //TAKE_PTR(s);
+    s = NULL;
+
     return 0;
 }
 

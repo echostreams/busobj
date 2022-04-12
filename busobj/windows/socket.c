@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include <poll.h>
+
 #ifndef MAX
 #define MAX(a,b) (((a) > (b)) ? (a) : (b))
 #endif
@@ -691,23 +693,25 @@ int ppoll(struct pollfd* fds, nfds_t nfds,
     */
 
     int timeout;
-
+    int ret;
     timeout = (timeout_ts == NULL) ? -1 :
         (timeout_ts->tv_sec * 1000 + timeout_ts->tv_nsec / 1000000);
 
-    timeout = 10;
+    //ret = _dbus_poll(fds, nfds, timeout);
 
-    //return _dbus_poll(fds, nfds, timeout);
     //printf("=== start of WSAPoll, timeout: %d\n", timeout);
-    int ret = WSAPoll(fds, nfds, timeout);
+    //ret = WSAPoll(fds, nfds, timeout);
     //printf("=== end of WSAPoll, return: %d\n", ret);
 
+    ret = poll(fds, nfds, timeout);
+
+    /*
     if (ret == 0) {
         for (int i = 0; i < nfds; i++) {
             printf("fds %d, %02x %x %x\n", i, fds[i].fd, fds[i].events, fds[i].revents);
         }
     }
-
+    */
     return ret;
 }
 

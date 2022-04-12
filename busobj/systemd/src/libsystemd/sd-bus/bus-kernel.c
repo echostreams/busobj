@@ -7,8 +7,9 @@
 #include <fcntl.h>
 #include <malloc.h>
 #include <sys/mman.h>
+#if defined(__linux__)
 #include <sys/prctl.h>
-
+#endif
 /* When we include libgen.h because we need dirname() we immediately
  * undefine basename() since libgen.h defines it as a macro to the POSIX
  * version which is really broken. We prefer GNU basename(). */
