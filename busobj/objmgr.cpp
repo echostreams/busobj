@@ -216,16 +216,17 @@ int main(int argc, char** argv)
 	sdbusplus::asio::object_server server(system_bus);
 
 	// Construct a signal set registered for process termination.
+#if 0
 	boost::asio::signal_set signals(io, SIGINT, SIGTERM);
 	signals.async_wait(
 		[&system_bus, &io](const boost::system::error_code&, int) {
 
 			std::cout << "io stop..." << std::endl;
-			
-			system_bus.get()->CloseSocket();
+
 			io.stop();
 			
 		});
+#endif
 
 	interface_map_type interface_map;
 	boost::container::flat_map<std::string, std::string> name_owners;
