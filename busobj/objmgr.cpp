@@ -242,12 +242,12 @@ int main(int argc, char** argv)
 
 
 	iface->initialize();
-	/*
+	
 	io.post([&]() {
 		doListNames(io, interface_map, system_bus.get(), name_owners,
 			associationMaps, server);
 		});
-	*/
+	
 	system_bus->request_name("xyz.openbmc_project.ObjectMapper");
 
 #if 0
