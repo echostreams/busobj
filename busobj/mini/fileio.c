@@ -5,6 +5,7 @@
 #include <io.h>
 #define close    _close
 #define strdup   _strdup
+#include <WinSock2.h>
 #else
 #include <fcntl.h>
 #include <stdio_ext.h>
@@ -51,12 +52,18 @@ extern "C" {
         assert(fd >= 0);
 
 #ifdef WIN32
-        if (CloseHandle((HANDLE)fd))
+        //if (CloseHandle((HANDLE)fd))
+        //    return 0;
+        if (closesocket((SOCKET)fd) != SOCKET_ERROR)
+        {
             return 0;
+        }
+        int err = WSAGetLastError();
+        return -err;
 #else
         if (close(fd) >= 0)
             return 0;
-#endif
+
 
         /*
          * Just ignore EINTR; a retry loop is the wrong thing to do on
@@ -71,6 +78,7 @@ extern "C" {
             return 0;
 
         return -errno;
+#endif
     }
 
     int safe_close(int fd) {

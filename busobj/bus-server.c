@@ -147,24 +147,24 @@ static int client(struct context* c) {
     assert_se(sd_bus_set_anonymous(bus, c->client_anonymous_auth) >= 0);
     assert_se(sd_bus_start(bus) >= 0);
     
-    r = sd_bus_message_new_method_call(
-        bus,
-        &m,
-        "org.freedesktop.systemd.test",
-        "/",
-        "org.freedesktop.systemd.test",
-        "test");
-    if (r < 0)
-        return log_error_errno(r, "[client] Failed to allocate test call: %m");
+    //r = sd_bus_message_new_method_call(
+    //    bus,
+    //    &m,
+    //    "org.freedesktop.systemd.test",
+    //    "/",
+    //    "org.freedesktop.systemd.test",
+    //    "test");
+    //if (r < 0)
+    //    return log_error_errno(r, "[client] Failed to allocate test call: %m");
 
-    r = sd_bus_call(bus, m, 0, &error, &reply);
+    //r = sd_bus_call(bus, m, 0, &error, &reply);
     //if (r < 0)
     //    return log_error_errno(r, "[client] Failed to issue method call: %s", bus_error_message(&error, r));
     
-    sd_bus_error_free(&error);
-    error = SD_BUS_ERROR_NULL;
+    //sd_bus_error_free(&error);
+    //error = SD_BUS_ERROR_NULL;
 
-    printf(">>>> new method call...\n");
+    //printf(">>>> new method call...\n");
 
     r = sd_bus_message_new_method_call(
         bus,
@@ -177,8 +177,25 @@ static int client(struct context* c) {
         return log_error_errno(r, "[client] Failed to allocate method call: %m");
 
     r = sd_bus_call(bus, m, 0, &error, &reply);
-    if (r < 0)
-        return log_error_errno(r, "[client] Failed to issue method call: %s", bus_error_message(&error, r));
+    if (r < 0) {
+        int ret = log_error_errno(r, "[client] Failed to issue method call: %s", bus_error_message(&error, r));
+        if (m != NULL)
+            sd_bus_message_unref(m);
+        if (reply != NULL)
+            sd_bus_message_unref(reply);
+        if (bus != NULL)
+            sd_bus_unref(bus);
+        sd_bus_error_free(&error);
+        return ret;
+    }
+
+    if (m != NULL)
+        sd_bus_message_unref(m);
+    if (reply != NULL)
+        sd_bus_message_unref(reply);
+    if (bus != NULL)
+        sd_bus_unref(bus);
+    sd_bus_error_free(&error);
 
     return 0;
 }

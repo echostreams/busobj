@@ -324,6 +324,7 @@ add_library(libsystemd-mini
 	"windows/posix.c"
 	"windows/wepoll/wepoll.c"
 	"windows/poll.c"
+	"windows/compat.c"
 
 	"systemd/src/busctl/busctl-introspect.c"
 
