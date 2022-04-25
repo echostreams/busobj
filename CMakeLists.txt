@@ -6,7 +6,9 @@ cmake_minimum_required (VERSION 3.8)
 if(WIN32)
 	message(STATUS "PATH: $ENV{PATH}")
 	message(STATUS "VCPKG_ROOT: $ENV{VCPKG_ROOT}")
-	set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+	file(TO_CMAKE_PATH $ENV{VCPKG_ROOT} VCPKG_LOCAL_ROOT)
+	message(STATUS "VCPKG_LOCAL_ROOT: ${VCPKG_LOCAL_ROOT}")
+	set(CMAKE_TOOLCHAIN_FILE "${VCPKG_LOCAL_ROOT}/scripts/buildsystems/vcpkg.cmake"
 			CACHE STRING "")
 	message(STATUS "CMAKE_TOOLCHAIN_FILE: ${CMAKE_TOOLCHAIN_FILE}")
 	
@@ -22,8 +24,14 @@ if(WIN32)
 	set(CMAKE_LINKER "${LLVM_PATH}/lld-link.exe")
     #set(CMAKE_C_COMPILER_ID "Clang") 
     #set(CMAKE_CXX_COMPILER_ID "Clang") 
-
+	
 endif()
+
+add_definitions(-DBOOST_ASIO_DISABLE_THREADS)
+add_definitions(-DBOOST_ALL_NO_LIB)
+add_definitions(-DBOOST_SYSTEM_NO_DEPRECATED)
+add_definitions(-DBOOST_ERROR_CODE_HEADER_ONLY)
+add_definitions(-DBOOST_COROUTINES_NO_DEPRECATION_WARNING)
 
 project ("busobj")
 
