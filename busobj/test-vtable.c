@@ -77,10 +77,10 @@ static void print_subtree(const char* prefix, const char* path, char** l) {
         l++;
     }
 
-    //vertical = strjoina(prefix, special_glyph(SPECIAL_GLYPH_TREE_VERTICAL));
-    vertical = strjoin(prefix, special_glyph(SPECIAL_GLYPH_TREE_VERTICAL));
-    //space = strjoina(prefix, special_glyph(SPECIAL_GLYPH_TREE_SPACE));
-    space = strjoin(prefix, special_glyph(SPECIAL_GLYPH_TREE_SPACE));
+    vertical = strjoina(prefix, special_glyph(SPECIAL_GLYPH_TREE_VERTICAL));
+    //vertical = strjoin(prefix, special_glyph(SPECIAL_GLYPH_TREE_VERTICAL));
+    space = strjoina(prefix, special_glyph(SPECIAL_GLYPH_TREE_SPACE));
+    //space = strjoin(prefix, special_glyph(SPECIAL_GLYPH_TREE_SPACE));
 
     for (;;) {
         bool has_more = false;
@@ -285,7 +285,7 @@ static int find_nodes(sd_bus* bus, const char* service, const char* path, Set* p
 
     _cleanup_(sd_bus_message_unrefp) sd_bus_message* reply = NULL;
     _cleanup_(sd_bus_error_free) sd_bus_error error = SD_BUS_ERROR_NULL;
-    char* xml;
+    _cleanup_free_ char* xml = NULL;
     int r;
 
     //r = sd_bus_call_method(bus, service, path,
@@ -299,7 +299,8 @@ static int find_nodes(sd_bus* bus, const char* service, const char* path, Set* p
         return r;
     }
 
-    return parse_xml_introspect(path, xml, &ops, paths);
+    r = parse_xml_introspect(path, xml, &ops, paths);
+    return r;
     
     /*
     r = __bus_process_object(bus, path);
@@ -316,7 +317,7 @@ static int find_nodes(sd_bus* bus, const char* service, const char* path, Set* p
 }
 
 static int tree_one(sd_bus* bus, const char* service) {
-    /*_cleanup_set_free_*/ Set* paths = NULL, * done = NULL, * failed = NULL;
+    _cleanup_set_free_ Set* paths = NULL, * done = NULL, * failed = NULL;
     _cleanup_free_ char** l = NULL;
     //const char* value;
     int r;
@@ -401,7 +402,7 @@ static void test_vtable(void) {
     //    r == -ENOENT  /* dbus is inactive */);
 
 #ifndef __cplusplus
-    /*_cleanup_free_*/ char* s = NULL, * s2 = NULL, * s3 = NULL;
+    _cleanup_free_ char* s = NULL, * s2 = NULL, * s3 = NULL;
 
     assert_se(introspect_path(bus, "/test/foo", NULL, false, true, NULL, &s, NULL) == 1);
     fputs(s, stdout);
@@ -417,12 +418,12 @@ static void test_vtable(void) {
     if (s3 != NULL)
         fputs(s3, stdout);
 
-    if (s != NULL)
-        free(s);
-    if (s2 != NULL)
-        free(s2);
-    if (s3 != NULL)
-        free(s3);
+    //if (s != NULL)
+    //    free(s);
+    //if (s2 != NULL)
+    //    free(s2);
+    //if (s3 != NULL)
+    //    free(s3);
 
     assert_se(happy_finder_object == 1);
 
@@ -484,15 +485,12 @@ void test_hashmap_remove1() {
     assert_se(!hashmap_get(m, "key 1"));
 }
 
-
 int main(int argc, char** argv) {
 
     //test_hashmap_remove1();
     //test_set_ensure_consume();
     test_vtable();
 
-    void* test = malloc(10);
-    printf("%p\n", test);
 #ifdef WIN32
     _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
     _CrtDumpMemoryLeaks();

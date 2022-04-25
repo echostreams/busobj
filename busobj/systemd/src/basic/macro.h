@@ -17,7 +17,7 @@
 
 #include "macro-fundamental.h"
 
-#ifdef WIN32
+#if defined(WIN32) && !defined(__clang__)
 
 #define _printf_(a, b)
 #define _alloc_(...)

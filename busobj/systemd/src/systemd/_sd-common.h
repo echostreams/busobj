@@ -31,14 +31,19 @@ typedef void (*_sd_destroy_t)(void *userdata);
 typedef unsigned int uid_t;
 typedef int gid_t;
 typedef int pid_t;
+typedef int clockid_t;
 
-#include "../../../windows/posix.h"
+//#include "../../../windows/posix.h"
 //#include <sys/shm.h> // for pid_t uid_t
 
 
 #undef interface
+
+#if !defined(__clang__)
 #define __attribute__(...)
 #define __inline__ __inline
+#endif
+
 #endif
 
 #ifndef _sd_printf_

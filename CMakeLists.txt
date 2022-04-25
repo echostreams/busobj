@@ -4,6 +4,13 @@
 cmake_minimum_required (VERSION 3.8)
 
 if(WIN32)
+	if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+		MESSAGE("-- vcpkg root found")
+		set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+			CACHE STRING "")
+	else()
+		MESSAGE("-- vcpkg root not found")
+	endif()
 	# try clang on windows
 	# Must be called before project call
 	#set(CMAKE_GENERATOR_TOOLSET "ClangCL")

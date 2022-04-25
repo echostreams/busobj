@@ -156,12 +156,20 @@ int log_object_internalv(
 
         n = strlen(object);
         //buffer = newa(char, n + 2 + LINE_MAX);
+#ifdef WIN32
+        buffer = (char*)_alloca(n + 2 + LINE_MAX);
+#else
         buffer = alloca(n + 2 + LINE_MAX);
+#endif
         b = stpcpy(stpcpy(buffer, object), ": ");
     }
     else
         //b = buffer = newa(char, LINE_MAX);
+#ifdef WIN32
+        b = buffer = (char*)_alloca(LINE_MAX);
+#else
         b = buffer = alloca(LINE_MAX);
+#endif
 
     (void)vsnprintf(b, LINE_MAX, format, ap);
 

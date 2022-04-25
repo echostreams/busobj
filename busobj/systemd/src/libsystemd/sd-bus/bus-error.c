@@ -6,6 +6,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#if defined(WIN32)
+#include <crtdbg.h>
+#endif
+
 #include "sd-bus.h"
 
 #include "alloc-util.h"
@@ -17,7 +21,9 @@
 #include "util.h"
 
 #ifdef WIN32
+#ifndef strdup
 #define strdup _strdup
+#endif
 #endif
 
 #if defined(__GNUC__)

@@ -4757,7 +4757,12 @@ _public_ int sd_bus_message_skip(sd_bus_message* m, const char* types) {
         //_q_ = alloca_safe(_l_ + 1);     
         size_t _nn_ = _l_ + 1;
         assert(_nn_ <= ALLOCA_MAX);
+
+#ifdef WIN32
+        _q_ = _alloca(_nn_ == 0 ? 1 : _nn_);
+#else
         _q_ = alloca(_nn_ == 0 ? 1 : _nn_);
+#endif
         ((uint8_t*)_q_)[_l_] = 0;
         types = (char*)memcpy_safe(_q_, c->signature + c->index, _l_);
     }

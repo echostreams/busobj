@@ -45,7 +45,11 @@
 # include <io.h>
 # include <stdio.h>
 # include <conio.h>
-# include <malloc.h>
+//#include <malloc.h>
+#ifndef _CRTDBG_MAP_ALLOC
+#define _CRTDBG_MAP_ALLOC
+#endif
+#include <crtdbg.h>
 # if GNULIB_MSVC_NOTHROW
 #  include "msvc-nothrow.h"
 # else

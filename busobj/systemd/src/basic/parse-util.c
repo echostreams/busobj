@@ -329,15 +329,15 @@ static const char *mangle_base(const char *s, unsigned *base) {
                 return s;
 
         /* Support Python 3 style "0b" and 0x" prefixes, because they truly make sense, much more than C's "0" prefix for octal. */
-        //k = STARTSWITH_SET(s, "0b", "0B");
-        k = startswith(s, "0b") || startswith(s, "0B");
+        k = STARTSWITH_SET(s, "0b", "0B");
+        //k = startswith(s, "0b") || startswith(s, "0B");
         if (k) {
                 *base = 2 | (*base & SAFE_ATO_ALL_FLAGS);
                 return k;
         }
 
-        //k = STARTSWITH_SET(s, "0o", "0O");
-        k = startswith(s, "0o") || startswith(s, "0O");
+        k = STARTSWITH_SET(s, "0o", "0O");
+        //k = startswith(s, "0o") || startswith(s, "0O");
         if (k) {
                 *base = 8 | (*base & SAFE_ATO_ALL_FLAGS);
                 return k;

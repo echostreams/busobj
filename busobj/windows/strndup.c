@@ -3,19 +3,29 @@
  * Distributed under the OSI-approved BSD 2-Clause License.  See accompanying
  * file `LICENSE` for more details.
  */
-#include <string.h>
-//#include "platform.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 
+#ifndef _CRTDBG_MAP_ALLOC
+#define _CRTDBG_MAP_ALLOC
+#endif
+#include <Windows.h>
+
+#include <string.h>
+//#include "platform.h"
+
 #include <math.h>
+
+#define _DEBUG
 #include <stdlib.h>
 #include <malloc.h>
+#include <crtdbg.h>
 
  // strndup() is not available on Windows
 char* strndup(const char* s1, size_t n)
 {
-    char* copy = (char*)malloc(n + 1);
+    char* copy = (char*)malloc((n + 1));
+	//char* copy = (char*)_malloc_dbg((n + 1), _NORMAL_BLOCK, __FILE__, __LINE__);
     memcpy(copy, s1, n);
     copy[n] = 0;
     return copy;
@@ -67,7 +77,7 @@ strchrnul(const char* s, int c_in)
 		((unsigned long long) char_ptr & (sizeof(longword) - 1)) != 0;
 		++char_ptr)
 		if (*char_ptr == c || *char_ptr == '\0')
-			return (void*)char_ptr;
+			return (char*)char_ptr;
 
 	/* All these elucidatory comments refer to 4-byte longwords,
 	   but the theory applies equally well to 8-byte longwords.  */

@@ -7,6 +7,8 @@ include(TestBigEndian)
 TEST_BIG_ENDIAN(IS_BIG_ENDIAN)
 
 if(WIN32)
+	add_definitions(-D_CRTDBG_MAP_ALLOC)
+	add_definitions(-D_DEBUG)
 	add_definitions(-DLITTLE_ENDIAN=1234)
 	add_definitions(-DBIG_ENDIAN=4321)
 	add_definitions(-DPDP_ENDIAN=3412)
@@ -217,6 +219,9 @@ add_library(libsystemd
 
 	"systemd/src/libsystemd/sd-daemon/sd-daemon.c"
 )
+
+target_compile_definitions(libsystemd PRIVATE FULL_STRV)
+target_compile_definitions(libsystemd PRIVATE BUS_CREDS_FULL)
 
 # Add source to this project's executable.
 add_executable (busobj 

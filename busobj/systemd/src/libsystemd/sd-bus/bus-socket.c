@@ -599,7 +599,7 @@ static int bus_socket_read_auth(sd_bus *b) {
         }
         if (k == 0) {
                 if (handle_cmsg)
-                        cmsg_close_all(&mh); /* paranoia, we shouldn't have gotten any fds on EOF */
+                        cmsg_close_all((struct msghdr*)&mh); /* paranoia, we shouldn't have gotten any fds on EOF */
                 return -ECONNRESET;
         }
 
@@ -1273,7 +1273,7 @@ int bus_socket_read_message(sd_bus *bus) {
         bus->rbuffer = b;
 
 #ifdef WIN32
-        iov.buf = ((uint8_t*)bus->rbuffer + bus->rbuffer_size);
+        iov.buf = ((CHAR*)bus->rbuffer + bus->rbuffer_size);
         iov.len = need - bus->rbuffer_size;
 #else
         iov = IOVEC_MAKE((uint8_t *)bus->rbuffer + bus->rbuffer_size, need - bus->rbuffer_size);
@@ -1313,7 +1313,7 @@ int bus_socket_read_message(sd_bus *bus) {
         }
         if (k == 0) {
                 if (handle_cmsg)
-                        cmsg_close_all(&mh); /* On EOF we shouldn't have gotten an fd, but let's make sure */
+                        cmsg_close_all((struct msghdr*)&mh); /* On EOF we shouldn't have gotten an fd, but let's make sure */
                 return -ECONNRESET;
         }
 
@@ -1374,7 +1374,7 @@ int bus_socket_process_opening(sd_bus *b) {
         if (!(events & (POLLOUT|POLLERR|POLLHUP)))
                 return 0;
 
-        r = getsockopt(b->output_fd, SOL_SOCKET, SO_ERROR, &error, &slen);
+        r = getsockopt(b->output_fd, SOL_SOCKET, SO_ERROR, (char*)&error, &slen);
         if (r < 0)
                 b->last_connect_error = errno;
         else if (error != 0)

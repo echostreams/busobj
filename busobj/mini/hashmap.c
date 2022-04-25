@@ -1,11 +1,20 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 
+#ifdef WIN32
+#ifndef _CRTDBG_MAP_ALLOC
+#define _CRTDBG_MAP_ALLOC
+#endif
+#endif
+
 #include <errno.h>
 #if defined(__linux__)
 #include <pthread.h>
 #endif
 #include <stdint.h>
 #include <stdlib.h>
+#ifdef WIN32
+#include <crtdbg.h>
+#endif
 
 #include "alloc-util.h"
 #include "fileio.h"
@@ -1922,8 +1931,11 @@ int _set_put_strdup_full(Set** s, const struct hash_ops* hash_ops, const char* p
 
     if (set_contains(*s, (char*)p))
         return 0;
-
+#ifdef WIN32
+    c = _strdup(p);
+#else
     c = strdup(p);
+#endif
     if (!c)
         return -ENOMEM;
 

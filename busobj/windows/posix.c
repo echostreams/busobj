@@ -1671,14 +1671,14 @@ static bool monitor_process_till_connect(PROCESS_INFORMATION *pi, HANDLE *hpipe)
 		DWORD exit_code;
 		GetExitCodeProcess(pi->hProcess, &exit_code);
 		if (exit_code != STILL_ACTIVE) {
-			dprint(FD_PROCESS, "process %u exited %d\n", GetProcessId(pi->hProcess), exit_code);
+			dprint(FD_PROCESS, "process %lu exited %ld\n", GetProcessId(pi->hProcess), exit_code);
 			break;
 		}
 
 		memset(buffer, 0, sizeof(buffer));
 		ReadFile(*hpipe, &buffer, sizeof(buffer) - 1, &bytes_read, NULL);
 		if (bytes_read && strstr(buffer, "connected")) {
-			dprint(FD_PROCESS, "process %u connected to client\n", GetProcessId(pi->hProcess));
+			dprint(FD_PROCESS, "process %lu connected to client\n", GetProcessId(pi->hProcess));
 			connected = TRUE;
 		}
 		usleep(10*1000);
@@ -1696,7 +1696,7 @@ HANDLE windows_handle_connection(HANDLE hjob, int sk)
 	WSAPROTOCOL_INFO protocol_info;
 	HANDLE ret;
 
-	sprintf(pipe_name+strlen(pipe_name), "%d", GetCurrentProcessId());
+	sprintf(pipe_name+strlen(pipe_name), "%lu", GetCurrentProcessId());
 	sprintf(args+strlen(args), "%s", pipe_name);
 
 	if (windows_create_process(&pi, args, &hjob) != 0)
@@ -1725,7 +1725,7 @@ HANDLE windows_handle_connection(HANDLE hjob, int sk)
 		goto cleanup;
 	}
 
-	dprint(FD_PROCESS, "process %d created child process %u\n", GetCurrentProcessId(), GetProcessId(pi.hProcess));
+	dprint(FD_PROCESS, "process %lu created child process %lu\n", GetCurrentProcessId(), GetProcessId(pi.hProcess));
 
 	/* monitor the process until it either exits or connects. This level
 	 * doesnt care which of those occurs because the result is that it

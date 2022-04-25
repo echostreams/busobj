@@ -173,7 +173,7 @@
                 ((_A) > (_B)) ? (_A) : (_B),                            \
                 VOID_0))
 #else
-#define CONST_MAX(_A, _B) ((_A) > (_B)) ? (_A) : (_B)
+#define CONST_MAX(_A, _B) (((_A) > (_B)) ? (_A) : (_B))
 #endif
 
 /* takes two types and returns the size of the larger one */

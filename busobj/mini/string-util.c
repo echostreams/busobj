@@ -73,7 +73,11 @@ char* strnappend(const char* s, const char* suffix, size_t b) {
         return strndup(suffix, b);
 
     if (!suffix)
+#ifdef WIN32
+        return _strdup(s);
+#else
         return strdup(s);
+#endif
 
     assert(s);
     assert(suffix);

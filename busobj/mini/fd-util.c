@@ -51,7 +51,7 @@ int fd_nonblock(int fd, bool nonblock) {
 	u_long iMode = 1;
 	int iResult = ioctlsocket(fd, FIONBIO, &iMode);
 	if (iResult != NO_ERROR) {
-		printf("ioctlsocket failed with error: %ld\n", iResult);
+		printf("ioctlsocket failed with error: %d\n", iResult);
 		return RET_NERRNO(iResult);
 	}
 

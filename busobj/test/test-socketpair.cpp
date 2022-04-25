@@ -9,7 +9,7 @@
 extern "C" int socketpair(int domain, int type, int protocol, int sv[2]);
 #define ERR(e) \
         { \
-        printf("%s:%s failed: %d [%s@%ld]\n",__FUNCTION__,e,WSAGetLastError(),__FILE__,__LINE__); \
+        printf("%s:%s failed: %d [%s@%d]\n",__FUNCTION__,e,WSAGetLastError(),__FILE__,__LINE__); \
         }
 #endif
 
@@ -48,7 +48,7 @@ void fib2(int socket) {
     int ret;
     // TODO: this loop never ends
 #ifdef WIN32
-    while (ret = recv(socket, (char*)&fib, sizeof(fib), 0))
+    while ((ret = recv(socket, (char*)&fib, sizeof(fib), 0)))
     {
         if (ret == SOCKET_ERROR) {
             if (ret == SOCKET_ERROR) {

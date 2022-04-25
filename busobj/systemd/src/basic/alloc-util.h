@@ -3,7 +3,9 @@
 
 #ifdef WIN32
 //#include <malloc.h>
+#ifndef _CRTDBG_MAP_ALLOC
 #define _CRTDBG_MAP_ALLOC
+#endif
 #include <crtdbg.h>
 #else
 #include <alloca.h>

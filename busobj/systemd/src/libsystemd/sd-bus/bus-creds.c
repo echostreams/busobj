@@ -376,7 +376,7 @@ _public_ int sd_bus_creds_get_cgroup(sd_bus_creds *c, const char **ret) {
 }
 
 _public_ int sd_bus_creds_get_unit(sd_bus_creds *c, const char **ret) {
-#if defined(__linux__)
+#ifdef BUS_CREDS_FULL
         int r;
 
         assert_return(c, -EINVAL);
@@ -405,7 +405,7 @@ _public_ int sd_bus_creds_get_unit(sd_bus_creds *c, const char **ret) {
 }
 
 _public_ int sd_bus_creds_get_user_unit(sd_bus_creds *c, const char **ret) {
-#if defined(__linux__)
+#ifdef BUS_CREDS_FULL
         int r;
 
         assert_return(c, -EINVAL);
@@ -434,7 +434,7 @@ _public_ int sd_bus_creds_get_user_unit(sd_bus_creds *c, const char **ret) {
 }
 
 _public_ int sd_bus_creds_get_slice(sd_bus_creds *c, const char **ret) {
-#if defined(__linux__)
+#ifdef BUS_CREDS_FULL
         int r;
 
         assert_return(c, -EINVAL);
@@ -463,7 +463,7 @@ _public_ int sd_bus_creds_get_slice(sd_bus_creds *c, const char **ret) {
 }
 
 _public_ int sd_bus_creds_get_user_slice(sd_bus_creds *c, const char **ret) {
-#if defined(__linux__)
+#ifdef BUS_CREDS_FULL
         int r;
 
         assert_return(c, -EINVAL);
@@ -492,7 +492,7 @@ _public_ int sd_bus_creds_get_user_slice(sd_bus_creds *c, const char **ret) {
 }
 
 _public_ int sd_bus_creds_get_session(sd_bus_creds *c, const char **ret) {
-#if defined (__linux__)
+#ifdef BUS_CREDS_FULL
         int r;
 
         assert_return(c, -EINVAL);
@@ -524,6 +524,8 @@ _public_ int sd_bus_creds_get_owner_uid(sd_bus_creds *c, uid_t *uid) {
 #ifdef WIN32
     return 0;
 #else
+
+#ifdef BUS_CREDS_FULL
         const char *shifted;
         int r;
 
@@ -540,6 +542,8 @@ _public_ int sd_bus_creds_get_owner_uid(sd_bus_creds *c, uid_t *uid) {
                 return r;
 
         return cg_path_get_owner_uid(shifted, uid);
+#endif
+
 #endif
 }
 
@@ -668,7 +672,7 @@ _public_ int sd_bus_creds_get_description(sd_bus_creds *c, const char **ret) {
 }
 
 static int has_cap(sd_bus_creds *c, size_t offset, int capability) {
-#if defined(__linux__)
+#ifdef BUS_CREDS_FULL
         size_t sz;
 
         assert(c);
@@ -691,7 +695,7 @@ static int has_cap(sd_bus_creds *c, size_t offset, int capability) {
 }
 
 _public_ int sd_bus_creds_has_effective_cap(sd_bus_creds *c, int capability) {
-#if defined(__linux__)
+#ifdef BUS_CREDS_FULL
         assert_return(c, -EINVAL);
         assert_return(capability >= 0, -EINVAL);
 
@@ -735,7 +739,7 @@ _public_ int sd_bus_creds_has_bounding_cap(sd_bus_creds *c, int capability) {
 }
 
 static int parse_caps(sd_bus_creds *c, unsigned offset, const char *p) {
-#if defined(__linux__)
+#ifdef BUS_CREDS_FULL
         size_t sz, max;
         unsigned i, j;
 
@@ -818,7 +822,7 @@ int bus_creds_add_more(sd_bus_creds *c, uint64_t mask, pid_t pid, pid_t tid) {
                        SD_BUS_CREDS_SUPPLEMENTARY_GIDS |
                        SD_BUS_CREDS_EFFECTIVE_CAPS | SD_BUS_CREDS_INHERITABLE_CAPS |
                        SD_BUS_CREDS_PERMITTED_CAPS | SD_BUS_CREDS_BOUNDING_CAPS)) {
-#if defined(__linux__)
+#ifdef BUS_CREDS_FULL
                 _cleanup_fclose_ FILE *f = NULL;
                 const char *p;
 
@@ -983,7 +987,7 @@ int bus_creds_add_more(sd_bus_creds *c, uint64_t mask, pid_t pid, pid_t tid) {
                 }
 #endif
         }
-#if defined(__linux__)
+#ifdef BUS_CREDS_FULL
         if (missing & SD_BUS_CREDS_SELINUX_CONTEXT) {
                 const char *p;
 
@@ -1282,7 +1286,7 @@ int bus_creds_extend_by_pid(sd_bus_creds *c, uint64_t mask, sd_bus_creds **ret) 
 
                 n->mask |= mask & (SD_BUS_CREDS_CGROUP|SD_BUS_CREDS_SESSION|SD_BUS_CREDS_UNIT|SD_BUS_CREDS_USER_UNIT|SD_BUS_CREDS_SLICE|SD_BUS_CREDS_USER_SLICE|SD_BUS_CREDS_OWNER_UID);
         }
-#if defined(__linux__)
+#ifdef BUS_CREDS_FULL
         if (c->mask & mask & (SD_BUS_CREDS_EFFECTIVE_CAPS|SD_BUS_CREDS_PERMITTED_CAPS|SD_BUS_CREDS_INHERITABLE_CAPS|SD_BUS_CREDS_BOUNDING_CAPS)) {
                 assert(c->capability);
 

@@ -14,6 +14,9 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
  */
+
+#if defined(_WIN32) || defined(_WIN64)
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -21,6 +24,7 @@
 #ifdef OPENCONNECT
 #include "openconnect-internal.h"
 #else
+
 #ifdef _WIN32
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -580,4 +584,6 @@ int dumb_socketpair(OPENCONNECT_CMD_SOCKET socks[2], int make_overlapped)
 	socks[0] = socks[1] = -1;
 	return SOCKET_ERROR;
 }
+#endif
+
 #endif

@@ -943,7 +943,7 @@ int introspect_path(
                 sd_bus_error *error) {
 
         _cleanup_ordered_set_free_ OrderedSet *s = NULL;
-        _cleanup_(introspect_free) struct introspect intro;// = {};
+        _cleanup_(introspect_free) struct introspect intro = {};
         struct node_vtable *c;
         bool empty;
         int r;
@@ -1017,12 +1017,7 @@ int introspect_path(
         r = introspect_finish(&intro, ret);
         if (r < 0)
                 return r;
-#if !defined (__GNUC__)
-        introspect_free(&intro);
-        if (s != NULL) {
-            ordered_set_free(s);
-        }
-#endif
+
         return 1;
 }
 

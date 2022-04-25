@@ -45,14 +45,18 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
         "CMAKE_TOOLCHAIN_FILE": {
-          "value": "d:/vcpkg/scripts/buildsystems/vcpkg.cmake",
+          "value": "c:/vcpkg/scripts/buildsystems/vcpkg.cmake",
           "type": "FILEPATH"
         },
         "VCPKG_TARGET_TRIPLET": "x64-windows",
-        
-        "CMAKE_C_COMPILER": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/x64/bin/clang-cl.exe",
-        "CMAKE_CXX_COMPILER": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/x64/bin/clang-cl.exe",
-        "CMAKE_LINKER": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/x64/bin/lld-link.exe"
+
+        "CMAKE_C_COMPILER_": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/x64/bin/clang-cl.exe",
+        "CMAKE_CXX_COMPILER_": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/x64/bin/clang-cl.exe",
+        "CMAKE_LINKER_": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/x64/bin/lld-link.exe",
+
+        "CMAKE_C_COMPILER": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/x64/bin/clang-cl.exe",
+        "CMAKE_CXX_COMPILER": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/x64/bin/clang-cl.exe",
+        "CMAKE_LINKER": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/x64/bin/lld-link.exe"
 
       },
       "vendor": { "microsoft.com/VisualStudioSettings/CMake/1.0": { "hostOS": [ "Windows" ] } }

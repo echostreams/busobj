@@ -12,6 +12,7 @@
 
 #ifdef WIN32
 #define	ESTRPIPE	86	/* Streams pipe error */
+#include <crtdbg.h>
 #endif
 
 /* Some structures we reference but don't want to pull in headers for */

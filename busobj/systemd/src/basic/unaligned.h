@@ -4,7 +4,7 @@
 #include <endian.h>
 #include <stdint.h>
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(__clang__)
 #define __attribute__(...)
 #endif
 

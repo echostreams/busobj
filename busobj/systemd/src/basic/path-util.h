@@ -2,7 +2,12 @@
 #pragma once
 
 #ifdef WIN32
+#ifndef _CRTDBG_MAP_ALLOC
+#define _CRTDBG_MAP_ALLOC
+#endif
 #include <malloc.h>
+#include <stdlib.h>
+#include <crtdbg.h>
 #else
 #include <alloca.h>
 #endif
