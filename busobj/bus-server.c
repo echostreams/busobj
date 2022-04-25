@@ -11,6 +11,7 @@
 #include <Windows.h>
 #include <process.h>    /* _beginthread, _endthread */
 int socketpair(int domain, int type, int protocol, int sv[2]);
+#include <crtdbg.h>
 #endif
 
 #include <stdlib.h>
@@ -179,6 +180,7 @@ static int client(struct context* c) {
     r = sd_bus_call(bus, m, 0, &error, &reply);
     if (r < 0) {
         int ret = log_error_errno(r, "[client] Failed to issue method call: %s", bus_error_message(&error, r));
+#if defined(WIN32) && !defined(__clang__)
         if (m != NULL)
             sd_bus_message_unref(m);
         if (reply != NULL)
@@ -186,6 +188,7 @@ static int client(struct context* c) {
         if (bus != NULL)
             sd_bus_unref(bus);
         sd_bus_error_free(&error);
+#endif
         return ret;
     }
 
@@ -317,5 +320,13 @@ int main(int argc, char* argv[]) {
     return PTR_TO_INT(server(&c));
     */
 
-    return test1();
+    test1();
+
+#ifdef WIN32
+    _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+    _CrtDumpMemoryLeaks();
+#endif
+
+    return 0;
 }

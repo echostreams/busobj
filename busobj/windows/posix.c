@@ -28,6 +28,7 @@
 #include <stdio.h>
 
 #include "win_clock_gettime.h"
+#include <ws2def.h>
 
 #define log_err printf
 
@@ -1350,10 +1351,12 @@ ssize_t readv(int fildes, const struct iovec *iov, int iovcnt)
 	//errno = ENOSYS;
 	//return -1;
 
+	LPWSABUF wsabuf = (LPWSABUF)iov;
+
 	long r, t = 0;
 	while (iovcnt)
 	{
-		r = recv((SOCKET)fildes, iov->iov_base, iov->iov_len, 0);
+		r = recv((SOCKET)fildes, wsabuf->buf, wsabuf->len, 0);
 		if (r < 0) {
 			int e = WSAGetLastError();
 			printf("readv failed: %d\n", e);
@@ -1368,7 +1371,7 @@ ssize_t readv(int fildes, const struct iovec *iov, int iovcnt)
 		}
 
 		t += r;
-		iov++;
+		wsabuf++;
 		iovcnt--;
 	}
 	printf(">> readv recv %d\n", t);

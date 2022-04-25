@@ -34,7 +34,9 @@
 #define strdup _strdup
 #endif
 
+#ifndef _CRTDBG_MAP_ALLOC
 #define _CRTDBG_MAP_ALLOC
+#endif
 
 #ifndef _DEBUG
 #define _DEBUG
@@ -491,8 +493,11 @@ int main(int argc, char** argv) {
     //test_set_ensure_consume();
     test_vtable();
 
+    char* test = malloc(10);
+    printf("%p\n", test);
 #ifdef WIN32
-    _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
+    _CrtSetReportMode(_CRT_WARN, /*_CRTDBG_MODE_DEBUG*/_CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
     _CrtDumpMemoryLeaks();
 #endif
 
