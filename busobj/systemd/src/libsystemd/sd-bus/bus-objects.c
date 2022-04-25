@@ -1017,7 +1017,12 @@ int introspect_path(
         r = introspect_finish(&intro, ret);
         if (r < 0)
                 return r;
-
+#if !defined (__GNUC__)
+        introspect_free(&intro);
+        if (s != NULL) {
+            ordered_set_free(s);
+        }
+#endif
         return 1;
 }
 
@@ -1056,7 +1061,12 @@ static int process_introspect(
         r = sd_bus_send(bus, reply, NULL);
         if (r < 0)
                 return r;
-
+#if !defined(__GNUC__)
+        if (s != NULL)
+        {
+            free(s);
+        }
+#endif
         return 1;
 }
 

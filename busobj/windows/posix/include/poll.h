@@ -3,7 +3,7 @@
 
 #include <winsock2.h>
 
-typedef int nfds_t;
+typedef unsigned int nfds_t;
 
 int poll(struct pollfd fds[], nfds_t nfds, int timeout);
 

@@ -348,6 +348,9 @@ add_executable(test-busctl
 add_executable(test-bus-marshal "systemd/src/libsystemd/sd-bus/test-bus-marshal.c")
 
 target_link_libraries(test-vtable libsystemd-mini)
+# test CrtDumpMemoryLeaks() on windows
+target_compile_definitions(test-vtable PUBLIC "$<$<CONFIG:DEBUG>:_DEBUG>")
+
 target_link_libraries(test-busctl libsystemd-mini)
 #target_link_libraries(test-hashmap-plain libsystemd-mini)
 target_link_libraries(test-bus-marshal libsystemd-mini)

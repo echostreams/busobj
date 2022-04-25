@@ -96,11 +96,12 @@ struct has_emplace_back_method
     static std::false_type test(...);
 
   public:
-#ifdef WIN32
+#if defined(_WIN32)
     static constexpr bool value = []() {
         if constexpr (has_value_type_v<T>)
+            // need to add typename before T::value_type for clang
             return std::is_same_v<std::true_type,
-                                  decltype(test<T, T::value_type>(nullptr))>;
+                                  decltype(test<T, typename T::value_type>(nullptr))>;
         else
             return std::is_same_v<std::true_type,
                                   decltype(test<T, dummy>(nullptr))>;

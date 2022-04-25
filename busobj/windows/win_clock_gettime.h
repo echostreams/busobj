@@ -28,4 +28,4 @@
 
 typedef int clockid_t;
 
-int clock_gettime(/*clockid_t*/int clk_id, struct timespec* tp);
+extern int clock_gettime(clockid_t clock_id, struct timespec* tp);

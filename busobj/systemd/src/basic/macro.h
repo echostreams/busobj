@@ -178,6 +178,7 @@
 #endif
 
 #ifdef WIN32
+#ifndef __clang__
 #include <intrin.h>
 static inline int __builtin_clzl(unsigned long mask)
 {
@@ -198,6 +199,7 @@ static inline int __builtin_clzll(unsigned long long x) {
     //return (int)(63 ^ ret);
     return (int)__lzcnt64(x);
 }
+#endif
 #endif
 
 /* align to next higher power-of-2 (except for: 0 => 0, overflow => 0) */

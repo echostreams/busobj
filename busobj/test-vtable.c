@@ -29,7 +29,20 @@
 #define DEFAULT_BUS_PATH "unix:path=/run/dbus/system_bus_socket"
 
 #ifdef WIN32
+
+#ifndef strdup
 #define strdup _strdup
+#endif
+
+#define _CRTDBG_MAP_ALLOC
+
+#ifndef _DEBUG
+#define _DEBUG
+#endif
+
+#include <stdlib.h>
+#include <crtdbg.h>
+
 #endif
 
 static struct context c;// = {};
@@ -477,6 +490,13 @@ int main(int argc, char** argv) {
     //test_hashmap_remove1();
     //test_set_ensure_consume();
     test_vtable();
+
+    void* test = malloc(10);
+    printf("%p\n", test);
+#ifdef WIN32
+    _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
+    _CrtDumpMemoryLeaks();
+#endif
 
     return 0;
 }

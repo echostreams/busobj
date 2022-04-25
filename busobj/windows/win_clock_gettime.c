@@ -58,7 +58,7 @@ int clock_gettime_realtime(struct timespec* tv)
     return 0;
 }
 
-int clock_gettime(/*clockid_t*/int type, struct timespec* tp)
+int clock_gettime(clockid_t type, struct timespec* tp)
 {
     if (type == CLOCK_MONOTONIC)
     {

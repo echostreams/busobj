@@ -377,7 +377,8 @@ ssize_t recvmsg_safe(int sockfd, struct msghdr* msg, int flags) {
     int iResult = recv(sockfd, wmsg->lpBuffers->buf, wmsg->lpBuffers->len, /*flags*/0);
     if (iResult > 0) {
         printf("Bytes received: %d\n", iResult);
-        for (int i = 0; i < iResult; i++) {
+        int i;
+        for (i = 0; i < iResult; i++) {
             printf("%02x ", wmsg->lpBuffers->buf[i]);
         }
         printf("\n");

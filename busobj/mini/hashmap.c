@@ -1899,6 +1899,13 @@ int _hashmap_put_strdup_full(Hashmap** h, const struct hash_ops* hash_ops, const
     if (r > 0)
         kdup = vdup = NULL;
 
+#if !defined(__GNUC__)
+    if (kdup != NULL)
+        free(kdup);
+    if (vdup != NULL)
+        free(vdup);
+#endif
+
     return r;
 }
 

@@ -26,7 +26,8 @@ int prot_from_flags(int flags) _const_;
 bool in_initrd(void);
 void in_initrd_force(bool value);
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
+#if !defined(__clang__)
 #include <intrin.h>
 static inline int __builtin_ctz(unsigned x) {
     unsigned long ret;
@@ -39,6 +40,7 @@ static inline int __builtin_clz(unsigned x) {
     //return (int)(31 ^ ret);
     return (int)__lzcnt(x);
 }
+
 /*
 static inline int __builtin_clzll(unsigned long long x) {
     //unsigned long ret;
@@ -52,6 +54,8 @@ static inline int __builtin_ctzll(unsigned long long x) {
     _BitScanForward64(&ret, x);
     return (int)ret;
 }
+#endif
+
 typedef int pid_t;
 #endif
 

@@ -8,7 +8,7 @@
 #include <limits.h>
 #include "types-fundamental.h"
 
-#ifdef WIN32
+#if defined(_WIN32) && !defined(__clang__)
 
 #define _align_(x)
 #define _const_
@@ -347,11 +347,12 @@ inline sd_bool _IN_SET() {
 
 
 #ifdef _MSC_VER
+#ifndef __clang__
 #  include <intrin.h>
 
 #  define __builtin_popcount __popcnt
 #  define __builtin_popcountll __popcnt64
-
+#endif
 #endif
 
 static inline size_t ALIGN_TO(size_t l, size_t ali) {

@@ -8,7 +8,7 @@
 #define AUDIT_SESSION_INVALID UINT32_MAX
 
 #ifdef WIN32
-typedef unsigned int pid_t;
+typedef int pid_t;
 typedef unsigned int uid_t;
 #endif
 
