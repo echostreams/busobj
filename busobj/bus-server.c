@@ -192,6 +192,7 @@ static int client(struct context* c) {
         return ret;
     }
 
+#if defined(WIN32) && !defined(__clang__)
     if (m != NULL)
         sd_bus_message_unref(m);
     if (reply != NULL)
@@ -199,7 +200,7 @@ static int client(struct context* c) {
     if (bus != NULL)
         sd_bus_unref(bus);
     sd_bus_error_free(&error);
-
+#endif
     return 0;
 }
 
@@ -221,7 +222,8 @@ static int test_one(bool client_negotiate_unix_fds, bool server_negotiate_unix_f
     zero(c);
 
 #ifdef WIN32
-    assert_se(socketpair(AF_UNIX, SOCK_STREAM, 0, c.fds) >= 0);
+    //assert_se(socketpair(AF_UNIX, SOCK_STREAM, 0, c.fds) >= 0);
+    assert_se(socketpair(AF_INET, SOCK_STREAM, 0, c.fds) >= 0);
 #else
     assert_se(socketpair(AF_UNIX, SOCK_STREAM, 0, c.fds) >= 0);
 #endif

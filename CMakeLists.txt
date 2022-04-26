@@ -4,12 +4,16 @@
 cmake_minimum_required (VERSION 3.8)
 
 if(WIN32)
+
 	message(STATUS "PATH: $ENV{PATH}")
 	message(STATUS "VCPKG_ROOT: $ENV{VCPKG_ROOT}")
 	file(TO_CMAKE_PATH $ENV{VCPKG_ROOT} VCPKG_LOCAL_ROOT)
 	message(STATUS "VCPKG_LOCAL_ROOT: ${VCPKG_LOCAL_ROOT}")
-	set(CMAKE_TOOLCHAIN_FILE "${VCPKG_LOCAL_ROOT}/scripts/buildsystems/vcpkg.cmake"
+	message(STATUS "CMAKE_TOOLCHAIN_FILE: ${CMAKE_TOOLCHAIN_FILE}")
+	if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+		set(CMAKE_TOOLCHAIN_FILE "${VCPKG_LOCAL_ROOT}/scripts/buildsystems/vcpkg.cmake"
 			CACHE STRING "")
+	endif()
 	message(STATUS "CMAKE_TOOLCHAIN_FILE: ${CMAKE_TOOLCHAIN_FILE}")
 	
 	# try clang on windows

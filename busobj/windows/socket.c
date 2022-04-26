@@ -677,6 +677,7 @@ int socketpair(int domain, int type, int protocol, int sv[2])
 #include <sys/signalfd.h>
 #include <time.h>
 typedef unsigned int nfds_t;
+extern int fio_poll(struct pollfd fds[], nfds_t nfds, int timeout);
 
 int ppoll(struct pollfd* fds, nfds_t nfds,
     const struct timespec* timeout_ts, const sigset_t* sigmask)

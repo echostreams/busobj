@@ -1242,8 +1242,8 @@ static int bus_socket_make_message(sd_bus *bus, size_t size) {
 
 int bus_socket_read_message(sd_bus *bus) {
 #ifdef WIN32
-    WSAMSG mh;
-    WSABUF iov;
+    WSAMSG mh = {};
+    WSABUF iov = {};
 #else
         struct msghdr mh;
         struct iovec iov = {NULL, 0};

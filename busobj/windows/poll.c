@@ -262,7 +262,7 @@ windows_compute_revents(HANDLE h, int* p_sought)
             if (!*p_sought)
                 return 0;
 
-            irbuffer = (INPUT_RECORD*)alloca(nbuffer * sizeof(INPUT_RECORD));
+            irbuffer = (INPUT_RECORD*)_alloca(nbuffer * sizeof(INPUT_RECORD));
             bRet = PeekConsoleInput(h, irbuffer, nbuffer, &avail);
             if (!bRet || avail == 0)
                 return POLLHUP;

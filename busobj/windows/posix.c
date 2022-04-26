@@ -1386,9 +1386,9 @@ ssize_t writev(int fildes, const struct iovec *iov, int iovcnt)
 	for (i = 0; i < iovcnt; i++) {
 		int len;
 
-		len = send((SOCKET)fildes, iov[i].iov_base, iov[i].iov_len, 0);
+		len = send((SOCKET)fildes, (const char*)iov[i].iov_base, (int)iov[i].iov_len, 0);
 
-		printf(">> Sending fd: %d, iovcnt: %d, iovlen: %d, return %d\n", fildes, i, iov[i].iov_len, len);
+		printf(">> Sending fd: %d, iovcnt: %d, iovlen: %zu, return %d\n", fildes, i, iov[i].iov_len, len);
 
 		if (len == SOCKET_ERROR) {
 			DWORD err = GetLastError();
@@ -1696,7 +1696,7 @@ HANDLE windows_handle_connection(HANDLE hjob, int sk)
 	char args[128] = " --server-internal=";
 	PROCESS_INFORMATION pi;
 	HANDLE hpipe = INVALID_HANDLE_VALUE;
-	WSAPROTOCOL_INFO protocol_info;
+	WSAPROTOCOL_INFOW protocol_info;
 	HANDLE ret;
 
 	sprintf(pipe_name+strlen(pipe_name), "%lu", GetCurrentProcessId());
@@ -1709,7 +1709,7 @@ HANDLE windows_handle_connection(HANDLE hjob, int sk)
 
 	/* duplicate socket and write the protocol_info to pipe so child can
 	 * duplicate the communciation socket */
-	if (WSADuplicateSocket(sk, GetProcessId(pi.hProcess), &protocol_info)) {
+	if (WSADuplicateSocketW(sk, GetProcessId(pi.hProcess), &protocol_info)) {
 		log_err("WSADuplicateSocket failed (%lu).\n", GetLastError());
 		ret = INVALID_HANDLE_VALUE;
 		goto cleanup;
