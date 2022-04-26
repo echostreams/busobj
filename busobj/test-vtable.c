@@ -500,6 +500,6 @@ int main(int argc, char** argv) {
     _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
     _CrtDumpMemoryLeaks();
 #endif
-
+    free(test);
     return 0;
 }

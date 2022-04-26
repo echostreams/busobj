@@ -323,12 +323,10 @@ int main(int argc, char* argv[]) {
     */
 
     test1();
-
 #ifdef WIN32
     _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
     _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
     _CrtDumpMemoryLeaks();
 #endif
-
     return 0;
 }
