@@ -519,8 +519,8 @@ static int bus_socket_auth_verify(sd_bus *b) {
 
 static int bus_socket_read_auth(sd_bus *b) {
 #ifdef WIN32
-        WSAMSG mh;
-        WSABUF iov;
+    WSAMSG mh = {};
+    WSABUF iov = {0, NULL};
 #else
         struct msghdr mh;
         struct iovec iov = { NULL, 0 };
@@ -1091,7 +1091,11 @@ int bus_socket_write_message(sd_bus *bus, sd_bus_message *m, size_t *idx) {
         assert(!size_multiply_overflow(sizeof(struct iovec), _n_));
         size_t _nn_ = sizeof(struct iovec) * _n_;
         assert(_nn_ <= ALLOCA_MAX);
+#ifdef WIN32
+        iov = (struct iovec*)_alloca(_nn_ == 0 ? 1 : _nn_);
+#else
         iov = (struct iovec *)alloca(_nn_ == 0 ? 1 : _nn_);
+#endif
 
         memcpy_safe(iov, m->iovec, n);
 
@@ -1243,7 +1247,7 @@ static int bus_socket_make_message(sd_bus *bus, size_t size) {
 int bus_socket_read_message(sd_bus *bus) {
 #ifdef WIN32
     WSAMSG mh = {};
-    WSABUF iov = {};
+    WSABUF iov = {0, NULL};
 #else
         struct msghdr mh;
         struct iovec iov = {NULL, 0};
