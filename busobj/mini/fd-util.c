@@ -5,6 +5,21 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <Windows.h>
+#include <winternl.h>
+#include <tchar.h>
+
+extern void dump_wsaprotocol_info(char ascii_or_wide, const void* proto_info, const void* provider_path_func);
+
+typedef NTSTATUS(WINAPI* NTQUERYOBJECT)(HANDLE ObjectHandle,
+	OBJECT_INFORMATION_CLASS ObjectInformationClass,
+	PVOID ObjectInformation,
+	ULONG Length,
+	PULONG ResultLength);
+
+static NTQUERYOBJECT              fp_NtQueryObject = NULL;
+
+#define ObjectNameInformation 1
+
 #endif
 
 #include <errno.h>
@@ -100,22 +115,95 @@ int fd_cloexec(int fd, bool cloexec) {
 
 int fd_get_path(int fd, char** ret) {
 
-#if ENABLE_FD_GET_PATH
+#if defined(__linux__)
 	int r;
 
 	r = readlink_malloc(FORMAT_PROC_FD_PATH(fd), ret);
 	if (r == -ENOENT) {
 		/* ENOENT can mean two things: that the fd does not exist or that /proc is not mounted. Let's make
 		 * things debuggable and distinguish the two. */
-
+#if ENABLE_STATFS
 		if (proc_mounted() == 0)
 			return -ENOSYS;  /* /proc is not available or not set up properly, we're most likely in some chroot
-							  * environment. */
+			    			  * environment. */
+#endif
 		return -EBADF; /* The directory exists, hence it's the fd that doesn't. */
 	}
 
 	return r;
 #else
+
+#ifdef WIN32
+	if (fd != SOCKET_ERROR) 
+	{
+		DWORD u32_ReqLength = 0;
+		PVOID                    objectNameInfo;
+		UNICODE_STRING           objectName = {};
+
+		UNICODE_STRING* pk_Info = &objectName;
+		pk_Info->Buffer = 0;
+		pk_Info->Length = 0;
+
+		if (!fp_NtQueryObject) {
+			fp_NtQueryObject = (NTQUERYOBJECT)GetProcAddress(GetModuleHandle("NTDLL.DLL"), "NtQueryObject");
+		}
+
+		objectNameInfo = malloc(0x1000);
+
+		// Get required length
+		fp_NtQueryObject(fd, ObjectNameInformation, objectNameInfo, 0x1000, &u32_ReqLength);
+
+		// Reallocate the buffer and try again.
+		objectNameInfo = realloc(objectNameInfo, u32_ReqLength);
+
+		// IMPORTANT: The return value from NtQueryObject is bullshit! (driver bug?)
+		// - The function may return STATUS_NOT_SUPPORTED although it has successfully written to the buffer.
+		// - The function returns STATUS_SUCCESS although h_File == 0xFFFFFFFF
+		fp_NtQueryObject(fd, ObjectNameInformation, objectNameInfo, u32_ReqLength, NULL);
+
+		// Cast our buffer into an UNICODE_STRING.
+		objectName = *(PUNICODE_STRING)objectNameInfo;
+		// On error pk_Info->Buffer is NULL
+		if (!pk_Info->Buffer || !pk_Info->Length)
+			return ERROR_FILE_NOT_FOUND;
+
+		//pk_Info->Buffer[pk_Info->Length / 2] = 0; // Length in Bytes!
+
+		// ansiSizeInBytes is number of bytes needed to represent unicode string as ANSI
+		int ansiSizeInBytes = WideCharToMultiByte(CP_ACP, 0, pk_Info->Buffer, -1, NULL, 0, NULL, NULL);
+		char* asniName = (char*)malloc(ansiSizeInBytes);
+		WideCharToMultiByte(CP_ACP, 0, pk_Info->Buffer, pk_Info->Length, asniName, ansiSizeInBytes, NULL, NULL);
+		free(objectNameInfo);
+		*ret = asniName;
+		if (strcmp(asniName, "\\Device\\Afd") == 0) {
+			INT r;
+			SOCKADDR_IN sockAddr = {};
+			INT nameLen = sizeof(SOCKADDR_IN);
+			r = getpeername((SOCKET)fd, (PSOCKADDR)&sockAddr, &nameLen);
+			if (r != 0) {
+				fwprintf(stderr, L"Failed to retrieve address of peer: %d\n", r);
+			}
+			else {
+				fwprintf(stdout, L"Address: %u.%u.%u.%u Port: %hu\n",
+					sockAddr.sin_addr.S_un.S_un_b.s_b1,
+					sockAddr.sin_addr.S_un.S_un_b.s_b2,
+					sockAddr.sin_addr.S_un.S_un_b.s_b3,
+					sockAddr.sin_addr.S_un.S_un_b.s_b4,
+					ntohs(sockAddr.sin_port));
+			}
+
+#if DUMP_WSAPROTOCOL_INFO
+			WSAPROTOCOL_INFO protinfo;
+			socklen_t optlen = sizeof(protinfo);
+			r = getsockopt(fd, SOL_SOCKET, SO_PROTOCOL_INFO, (char*)(&protinfo), &optlen);
+
+			dump_wsaprotocol_info('A', (const void*)&protinfo, NULL);
+#endif
+
+		}
+	}
+#endif
+
 	return 0;
 #endif
 }

@@ -291,6 +291,7 @@ add_library(libsystemd-mini
 	"mini/locale-util.c"
 	"mini/tests.c"
 	"mini/fd-util.c"
+	"mini/fs-util.c"
 	"mini/socket-util.c"
 	"mini/user-util.c"
 	"mini/process-util.c"
@@ -330,6 +331,7 @@ add_library(libsystemd-mini
 	"windows/wepoll/wepoll.c"
 	"windows/poll.c"
 	"windows/compat.c"
+	"windows/dump_wsaprotocol_info.c"
 
 	"systemd/src/busctl/busctl-introspect.c"
 
@@ -416,7 +418,7 @@ endif()
 add_executable (bus-server "bus-server.c")
 target_link_libraries(bus-server libsystemd-mini)
 if(WIN32)
-	target_link_libraries(bus-server ws2_32)
+	target_link_libraries(bus-server ws2_32 ${CMAKE_CURRENT_SOURCE_DIR}/windows/wsock_trace_x64.lib)
 else()
 	target_link_libraries(bus-server pthread)
 endif()

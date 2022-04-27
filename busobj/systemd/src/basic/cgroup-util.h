@@ -6,9 +6,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
-#if defined(__linux__)
 #include <sys/statfs.h>
-#endif
 #include <sys/types.h>
 
 #include "def.h"

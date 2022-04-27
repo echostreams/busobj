@@ -1433,7 +1433,7 @@ _public_ int sd_bus_call(
 
     i = bus->rqueue_size;
 
-    printf(" >> sd_bus_call: requeue_size %ld\n", bus->rqueue_size);
+    printf(" >> sd_bus_call: requeue_size %zu\n", bus->rqueue_size);
     
     r = bus_seal_message(bus, m, usec);
     if (r < 0)
@@ -2490,7 +2490,11 @@ int bus_start_running(sd_bus* bus) {
 }
 
 static int bus_start_fd(sd_bus* b) {
+#ifdef WIN32
+    struct _stat st;
+#else
     struct stat st;
+#endif
     int r;
 
     assert(b);
@@ -2528,10 +2532,9 @@ static int bus_start_fd(sd_bus* b) {
 
 #ifdef WIN32
     int fd = _open_osfhandle(b->input_fd, _O_RDONLY);
-    if (fstat(fd, &st) < 0)
+    if (_fstat(fd, &st) < 0)
         return -errno;
 #else
-
     if (fstat(b->input_fd, &st) < 0)
         return -errno;
 #endif

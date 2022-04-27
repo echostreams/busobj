@@ -47,7 +47,7 @@
 
 #endif
 
-static struct context c;// = {};
+static struct context c = {};
 static int happy_finder_object = 0;
 
 static int happy_finder(sd_bus* bus, const char* path, const char* interface, void* userdata, void** found, sd_bus_error* error) {

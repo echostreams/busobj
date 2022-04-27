@@ -109,7 +109,7 @@ _public_ int sd_id128_from_string(const char s[], sd_id128_t *ret) {
 }
 
 _public_ int sd_id128_get_machine(sd_id128_t *ret) {
-        static thread_local sd_id128_t saved_machine_id;// = {};
+        static thread_local sd_id128_t saved_machine_id = {};
         int r;
 
         assert_return(ret, -EINVAL);
@@ -128,7 +128,7 @@ _public_ int sd_id128_get_machine(sd_id128_t *ret) {
 }
 
 _public_ int sd_id128_get_boot(sd_id128_t *ret) {
-        static thread_local sd_id128_t saved_boot_id;   // = {};
+        static thread_local sd_id128_t saved_boot_id = {};
         int r;
 
         assert_return(ret, -EINVAL);
@@ -256,7 +256,7 @@ static int get_invocation_from_environment(sd_id128_t *ret) {
 }
 
 _public_ int sd_id128_get_invocation(sd_id128_t *ret) {
-        static thread_local sd_id128_t saved_invocation_id;// = {};
+        static thread_local sd_id128_t saved_invocation_id = {};
         int r;
 
         assert_return(ret, -EINVAL);

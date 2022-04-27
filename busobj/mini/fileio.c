@@ -237,7 +237,7 @@ extern "C" {
         if (!f)
             return NULL;
         // save the temp file name to i->introspect
-        *ptr = strdup(szTempFileName);
+        *ptr = _strdup(szTempFileName);
 #else
 
         FILE* f = open_memstream(ptr, sizeloc);

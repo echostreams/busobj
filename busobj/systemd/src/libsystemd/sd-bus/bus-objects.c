@@ -2118,7 +2118,7 @@ static int emit_properties_changed_on_interface(
         _cleanup_(sd_bus_error_free) sd_bus_error error = SD_BUS_ERROR_NULL;
         _cleanup_(sd_bus_message_unrefp) sd_bus_message *m = NULL;
         bool has_invalidating = false, has_changing = false;
-        struct vtable_member key;// = {};
+        struct vtable_member key = {};
         struct node_vtable *c;
         struct node *n;
         char **property;

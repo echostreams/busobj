@@ -556,13 +556,13 @@ static int bus_socket_read_auth(sd_bus *b) {
         b->rbuffer = p;
 
 #ifdef WIN32
-        iov.buf = (uint8_t*)b->rbuffer + b->rbuffer_size;
+        iov.buf = (CHAR*)b->rbuffer + b->rbuffer_size;
         iov.len = n - b->rbuffer_size;
 #else
         iov = IOVEC_MAKE((uint8_t *)b->rbuffer + b->rbuffer_size, n - b->rbuffer_size);
 #endif
         if (b->prefer_readv) {
-                k = readv(b->input_fd, &iov, 1);
+                k = readv(b->input_fd, (const struct iovec*)&iov, 1);
                 if (k < 0)
                         k = -errno;
         } else {
