@@ -203,6 +203,26 @@ extern "C" {
     }
 #endif
 
+    char *win_read_memstream_tempfile(FILE *fp, size_t* sizep) {
+        size_t size; /*filesize*/
+        char *buffer; /*buffer*/
+
+        if (!fp) {
+            return NULL;
+        }
+        size = ftell(fp);         /*calc the size needed*/
+        *sizep = size;
+        fseek(fp, 0, SEEK_SET);
+        buffer = (char*)malloc(size);  /*allocalte space on heap*/
+
+        if (fread(&buffer, 1, size, fp) != size) { 
+            /* if count of read bytes != calculated size of file -> ERROR*/
+            printf("Error: There was an Error reading the file %s - %d\n", path, errno);
+        }
+        fclose(fp);
+        return buffer;
+    }
+
     FILE* open_memstream_unlocked(char** ptr, size_t* sizeloc)
     {
 
@@ -247,7 +267,6 @@ extern "C" {
         (void)__fsetlocking(f, FSETLOCKING_BYCALLER);
 
 #endif
-
         return f;
     }
 

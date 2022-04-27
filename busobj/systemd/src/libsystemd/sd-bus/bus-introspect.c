@@ -275,7 +275,7 @@ int introspect_finish(struct introspect *i, char **ret) {
                 return r;
 
 #ifdef WIN32
-        fseek(i->f, 0, SEEK_END);
+        //fseek(i->f, 0, SEEK_END);
         long fsize = ftell(i->f);
         //to reset the pointer to the start of the file.
         fseek(i->f, 0, SEEK_SET);  /* same as rewind(f); */

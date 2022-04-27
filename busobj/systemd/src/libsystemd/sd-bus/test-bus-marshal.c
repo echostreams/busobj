@@ -260,9 +260,18 @@ int main(int argc, char *argv[]) {
         sd_bus_message_dump(m, stdout, SD_BUS_MESSAGE_DUMP_WITH_HEADER);
 
         fclose(ms);
+
+#ifdef WIN32
+        char *content = win_read_memstream_tempfile(first, &first_size);
+        DeleteFile(first);
+        free(first);
+        first = content;
+#endif
+
         ms = open_memstream_unlocked(&second, &second_size);
         sd_bus_message_dump(m, ms, 0);
         fflush(ms);
+
         assert_se(!ferror(ms));
         assert_se(first_size == second_size);
         assert_se(memcmp(first, second, first_size) == 0);

@@ -54,6 +54,11 @@ int take_fdopen_unlocked(int *fd, const char *options, FILE **ret);
 FILE* take_fdopen(int *fd, const char *options);
 DIR* take_fdopendir(int *dfd);
 FILE* open_memstream_unlocked(char **ptr, size_t *sizeloc);
+
+#ifdef WIN32
+char* win_read_memstream_tempfile(char* path, size_t* sizep);
+#endif
+
 FILE* fmemopen_unlocked(void *buf, size_t size, const char *mode);
 
 int write_string_stream_ts(FILE *f, const char *line, WriteStringFileFlags flags, const struct timespec *ts);
