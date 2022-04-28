@@ -56,7 +56,7 @@ DIR* take_fdopendir(int *dfd);
 FILE* open_memstream_unlocked(char **ptr, size_t *sizeloc);
 
 #ifdef WIN32
-char* win_read_memstream_tempfile(char* path, size_t* sizep);
+char* win_read_memstream_tempfile(FILE* fp, size_t* sizep);
 #endif
 
 FILE* fmemopen_unlocked(void *buf, size_t size, const char *mode);

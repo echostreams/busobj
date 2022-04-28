@@ -5,7 +5,9 @@
 #include <stdbool.h>
 #include <sys/types.h>
 
+#if defined(__linux__)
 int name_to_handle_at_loop(int fd, const char *path, struct file_handle **ret_handle, int *ret_mnt_id, int flags);
+#endif
 
 int path_get_mnt_id(const char *path, int *ret);
 

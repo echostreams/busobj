@@ -51,6 +51,7 @@
 #include <mswsock.h>
 #include <iphlpapi.h>
 #include <stdio.h>
+
 typedef int gid_t;
 #define ERR(e) \
         { \
@@ -165,7 +166,7 @@ int sockaddr_pretty(
     char** ret) {
 
     union sockaddr_union* sa = (union sockaddr_union*)_sa;
-    char* p;
+    char* p = NULL;
     int r;
 
     assert(sa);
@@ -389,7 +390,7 @@ ssize_t recvmsg_safe(int sockfd, struct msghdr* msg, int flags) {
     }
     else {
         int e = WSAGetLastError();
-        printf("recv failed: %d, buf len: %d\n", e, wmsg->lpBuffers->len);
+        printf("recv failed: %d, buf len: %lu\n", e, wmsg->lpBuffers->len);
         if (e == WSAEWOULDBLOCK) {
             /*This error is returned from operations on nonblocking sockets 
             that cannot be completed immediately, for example recv when no data is queued to be read from the socket. 

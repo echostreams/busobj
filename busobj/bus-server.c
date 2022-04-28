@@ -260,7 +260,7 @@ static int test_one(bool client_negotiate_unix_fds, bool server_negotiate_unix_f
     // Wait until threads have terminated.
 
     q = WaitForSingleObject(s, INFINITE);
-    GetExitCodeThread(s, &p);
+    GetExitCodeThread(s, (LPDWORD)&p);
     CloseHandle(s);
 
 #else

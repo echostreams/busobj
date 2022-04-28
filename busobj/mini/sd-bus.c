@@ -1670,9 +1670,14 @@ static char* __strjoina(const char *a, const char *b)                           
         size_t _len_ = 0;                                       
         size_t _i_;                                             
         for (_i_ = 0; _i_ < ELEMENTSOF(_appendees_) && _appendees_[_i_]; _i_++) 
-                _len_ += strlen(_appendees_[_i_]);              
+                _len_ += strlen(_appendees_[_i_]);  
+#ifdef WIN32
+        _p_ = _d_ = //newa(char, _len_ + 1);                      
+            _alloca(_len_ + 1);
+#else
         _p_ = _d_ = //newa(char, _len_ + 1);                      
             alloca(_len_ + 1);
+#endif
         for (_i_ = 0; _i_ < ELEMENTSOF(_appendees_) && _appendees_[_i_]; _i_++) 
                 _p_ = stpcpy(_p_, _appendees_[_i_]);            
         *_p_ = 0; 
@@ -2514,20 +2519,19 @@ static int bus_start_fd(sd_bus* b) {
     r = fd_nonblock(b->input_fd, true);
     if (r < 0)
         return r;
-#if defined(__linux__)
+
     r = fd_cloexec(b->input_fd, true);
     if (r < 0)
         return r;
-#endif
+
     if (b->input_fd != b->output_fd) {
         r = fd_nonblock(b->output_fd, true);
         if (r < 0)
             return r;
-#if defined(__linux__)
+
         r = fd_cloexec(b->output_fd, true);
         if (r < 0)
             return r;
-#endif
     }
 
 #ifdef WIN32

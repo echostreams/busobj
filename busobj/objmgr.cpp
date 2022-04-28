@@ -2,7 +2,7 @@
 #undef interface
 #endif
 
-#include "objmgr-types.hpp"
+
 
 #include <boost/asio/io_context.hpp>
 #include <sdbusplus/asio/connection.hpp>
@@ -17,6 +17,16 @@
 
 #include <systemd/sd-bus.h>
 
+#include "objmgr-types.hpp"
+//#include "bus-internal.h"
+//#include "log.h"
+//#include "macro.h"
+
+#ifdef WIN32
+#include <WinSock2.h>
+extern "C" int socketpair(int domain, int type, int protocol, int sv[2]);
+
+#endif
 
 AssociationMaps associationMaps;
 /** @brief Define white list and black list data structure */
@@ -206,12 +216,30 @@ extern "C" void bus_message_set_sender_local(sd_bus * bus, sd_bus_message * m);
 extern "C" void bus_iteration_counter_increase(sd_bus * bus);
 extern "C" void log_set_max_level(int);
 
-int main(int argc, char** argv)
+#define assert_se assert
+
+int peer_server(int fd)
 {
 	boost::asio::io_context io;
 	log_set_max_level(7);
+
+	sd_bus* bus = NULL;
+	sd_id128_t id;
+
+	assert_se(sd_id128_randomize(&id) >= 0);
+
+	assert_se(sd_bus_new(&bus) >= 0);
+	assert_se(sd_bus_set_description(bus, "server") >= 0);
+
+	assert_se(sd_bus_set_fd(bus, fd, fd) >= 0);
+
+	assert_se(sd_bus_set_server(bus, 1, id) >= 0);
+	assert_se(sd_bus_set_anonymous(bus, true) >= 0);
+	assert_se(sd_bus_negotiate_fds(bus, false) >= 0);
+	assert_se(sd_bus_start(bus) >= 0);
+
 	std::shared_ptr<sdbusplus::asio::connection> system_bus =
-		std::make_shared<sdbusplus::asio::connection>(io);
+		std::make_shared<sdbusplus::asio::connection>(io, bus);
 
 	sdbusplus::asio::object_server server(system_bus);
 
@@ -244,12 +272,12 @@ int main(int argc, char** argv)
 
 	iface->initialize();
 	
-	io.post([&]() {
-		doListNames(io, interface_map, system_bus.get(), name_owners,
-			associationMaps, server);
-		});
+	//io.post([&]() {
+	//	doListNames(io, interface_map, system_bus.get(), name_owners,
+	//		associationMaps, server);
+	//	});
 	
-	system_bus->request_name("xyz.openbmc_project.ObjectMapper");
+	//system_bus->request_name("xyz.openbmc_project.ObjectMapper");
 
 #if 0
 	
@@ -283,6 +311,126 @@ int main(int argc, char** argv)
 #endif
 
 	io.run();
+
+	printf("..>>..>>..>>..\n");
+
+	return 0;
+}
+
+void* get_in_addr(struct sockaddr* sa)
+{
+	if (sa->sa_family == AF_INET)
+	{
+		return &(((struct sockaddr_in*)sa)->sin_addr);
+	}
+
+	return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
+int main(int argc, char** argv)
+{
+#ifdef _WIN32
+	//----------------------
+	// Initialize Winsock.
+	WSADATA wsaData;
+	int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+	if (iResult != NO_ERROR) {
+		wprintf(L"WSAStartup failed with error: %ld\n", iResult);
+		return 1;
+	}
+#endif
+
+	//1. Getting the address data structure.
+	//2. Openning a new socket.
+	//3. Bind to the socket.
+	//4. Listen to the socket.
+	//5. Accept Connection.
+	//6. Pass new connection to peer_server.
+
+	int status;
+	struct addrinfo hints, *res;
+	int listner;
+	// Before using hint you have to make sure that the data structure is empty 
+	memset(&hints, 0, sizeof hints);
+	// Set the attribute for hint
+	hints.ai_family = AF_UNSPEC; // We don't care V4 AF_INET or 6 AF_INET6
+	hints.ai_socktype = SOCK_STREAM; // TCP Socket SOCK_DGRAM 
+	hints.ai_flags = AI_PASSIVE;
+
+	// Fill the res data structure and make sure that the results make sense. 
+	status = getaddrinfo(NULL, "8888", &hints, &res);
+	if (status != 0)
+	{
+		fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
+	}
+
+	// Create Socket and check if error occured afterwards
+	//listner = ::socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+	listner = ::socket(AF_INET, SOCK_STREAM, 0);
+	if (listner < 0)
+	{
+		fprintf(stderr, "socket error: %s\n", gai_strerror(status));
+	}
+
+	struct sockaddr_in address;
+	address.sin_family = AF_INET;
+	address.sin_addr.s_addr = INADDR_ANY;
+	address.sin_port = htons(8888);
+
+	// Bind the socket to the address of my local machine and port number 
+	//status = bind(listner, res->ai_addr, res->ai_addrlen);
+	status = bind(listner, (struct sockaddr*)&address, sizeof(address));
+	if (status < 0)
+	{
+		fprintf(stderr, "bind: %s\n", gai_strerror(status));
+	}
+
+	status = listen(listner, 10);
+	if (status < 0)
+	{
+		fprintf(stderr, "listen: %s\n", gai_strerror(status));
+	}
+
+	// Free the res linked list after we are done with it	
+	freeaddrinfo(res);
+
+
+	// We should wait now for a connection to accept
+	int new_conn_fd;
+	struct sockaddr_storage client_addr;
+	socklen_t addr_size;
+	char s[INET6_ADDRSTRLEN]; // an empty string 
+
+							  // Calculate the size of the data structure	
+	addr_size = sizeof client_addr;
+
+	printf("I am now accepting connections ...\n");
+
+	while (1) {
+		// Accept a new connection and return back the socket desciptor 
+		new_conn_fd = accept(listner, (struct sockaddr*)&client_addr, &addr_size);
+		if (new_conn_fd < 0)
+		{
+			fprintf(stderr, "accept: %s\n", gai_strerror(new_conn_fd));
+			continue;
+		}
+
+		inet_ntop(client_addr.ss_family, get_in_addr((struct sockaddr*)&client_addr), s, sizeof s);
+		printf("I am now connected to %s \n", s);
+		
+		peer_server(new_conn_fd);
+		
+#ifdef _WIN32
+		closesocket(new_conn_fd);
+#else
+		close(new_conn_fd);
+#endif
+
+	}
+
+#ifdef WIN32
+	WSACleanup();
+#endif
 
 	return 0;
 }

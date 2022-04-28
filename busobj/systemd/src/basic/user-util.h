@@ -107,12 +107,15 @@ int maybe_setgroups(size_t size, const gid_t *list);
 
 bool synthesize_nobody(void);
 
+#if defined(__linux__)
 int fgetpwent_sane(FILE *stream, struct passwd **pw);
 int fgetspent_sane(FILE *stream, struct spwd **sp);
 int fgetgrent_sane(FILE *stream, struct group **gr);
 int putpwent_sane(const struct passwd *pw, FILE *stream);
 int putspent_sane(const struct spwd *sp, FILE *stream);
 int putgrent_sane(const struct group *gr, FILE *stream);
+#endif
+
 #if ENABLE_GSHADOW
 int fgetsgent_sane(FILE *stream, struct sgrp **sg);
 int putsgent_sane(const struct sgrp *sg, FILE *stream);

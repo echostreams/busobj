@@ -335,8 +335,11 @@ struct bus
     auto get_unique_name()
     {
         const char* unique = nullptr;
-        _intf->sd_bus_get_unique_name(_bus.get(), &unique);
-        return std::string(unique);
+        // if sd_bus_set_server(1), no unique name returned
+        if (_intf->sd_bus_get_unique_name(_bus.get(), &unique) == 0)
+            return std::string(unique);
+        else
+            return std::string(":1.11");    // return :1.11 for server 
     }
 
     auto get_fd()

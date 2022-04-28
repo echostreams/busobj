@@ -95,7 +95,20 @@ int fd_nonblock(int fd, bool nonblock) {
 
 int fd_cloexec(int fd, bool cloexec) {
 #ifdef WIN32
-	return 0;
+	if (
+		!SetHandleInformation((HANDLE)fd,
+			HANDLE_FLAG_INHERIT | HANDLE_FLAG_PROTECT_FROM_CLOSE,
+			cloexec ? 0 /*disable both flags*/
+			: HANDLE_FLAG_INHERIT | HANDLE_FLAG_PROTECT_FROM_CLOSE)
+		)
+	{
+		//_dbus_win_warn_win_error("Disabling socket handle inheritance failed:", GetLastError());
+		DWORD lastErr = GetLastError();
+		return -lastErr;
+	}
+	else
+		return 0;
+
 #else
 	int flags, nflags;
 

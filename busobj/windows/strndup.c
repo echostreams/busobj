@@ -16,7 +16,10 @@
 
 #include <math.h>
 
+#ifndef _DEBUG
 #define _DEBUG
+#endif
+
 #include <stdlib.h>
 #include <malloc.h>
 #include <crtdbg.h>
@@ -25,7 +28,6 @@
 char* strndup(const char* s1, size_t n)
 {
     char* copy = (char*)malloc((n + 1));
-	//char* copy = (char*)_malloc_dbg((n + 1), _NORMAL_BLOCK, __FILE__, __LINE__);
     memcpy(copy, s1, n);
     copy[n] = 0;
     return copy;

@@ -3,27 +3,26 @@
 #include <Windows.h>
 #include <stdio.h>
 
-void get_machine_guid()
+void win_get_machine_guid(LPBYTE buf, LPDWORD len)
 {
 	HKEY hKey = 0;
-	char buf[255] = { 0 };
-	DWORD dwType = 0;
-	DWORD dwBufSize = 255;
+	DWORD dwType = REG_SZ;
 	const wchar_t* subkey = L"Software\\Microsoft\\Cryptography";
 
 	if (RegOpenKey(HKEY_LOCAL_MACHINE, subkey, &hKey) == ERROR_SUCCESS)
 	{
-		dwType = REG_SZ;
-		if (RegQueryValueEx(hKey, L"MachineGuid", 0, &dwType, (BYTE*)buf, &dwBufSize) == ERROR_SUCCESS)
+		if (RegQueryValueEx(hKey, L"MachineGuid", 0, &dwType, buf, len) == ERROR_SUCCESS)
 		{
 			printf("MachineGuid: %s\n", buf);
 		}
-		else
+		else 
+		{
 			printf("Can not query for key value\n");
-
+		}
 		RegCloseKey(hKey);
 	}
-	else {
+	else 
+	{
 		printf("Can not open key\n");
 	}
 }

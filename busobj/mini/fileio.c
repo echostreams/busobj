@@ -206,20 +206,20 @@ extern "C" {
     char *win_read_memstream_tempfile(FILE *fp, size_t* sizep) {
         size_t size; /*filesize*/
         char *buffer; /*buffer*/
+        size_t bytes;
 
         if (!fp) {
             return NULL;
         }
+        
         size = ftell(fp);         /*calc the size needed*/
-        *sizep = size;
-        fseek(fp, 0, SEEK_SET);
-        buffer = (char*)malloc(size);  /*allocalte space on heap*/
+        buffer = (char*)malloc(size + 1);  /*allocalte space on heap*/
 
-        if (fread(&buffer, 1, size, fp) != size) { 
-            /* if count of read bytes != calculated size of file -> ERROR*/
-            printf("Error: There was an Error reading the file %s - %d\n", path, errno);
-        }
-        fclose(fp);
+        fseek(fp, 0, SEEK_SET);
+        bytes = fread(buffer, 1, size, fp);
+        fseek(fp, size, SEEK_SET);
+
+        *sizep = bytes;
         return buffer;
     }
 

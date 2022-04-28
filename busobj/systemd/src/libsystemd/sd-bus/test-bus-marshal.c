@@ -29,6 +29,7 @@
 
 #ifdef WIN32
 #include <locale.h>
+#include <crtdbg.h>
 #endif
 
 static void test_bus_path_encode_unique(void) {
@@ -111,7 +112,7 @@ static void test_bus_label_escape(void) {
         test_bus_label_escape_one(":1", "_3a1");
 }
 
-int main(int argc, char *argv[]) {
+int test_bus_marshal(void) {
         _cleanup_(sd_bus_message_unrefp) sd_bus_message *m = NULL, *copy = NULL;
         int r, boolean;
         const char *x, *x2, *y, *z, *a, *b, *c, *d, *a_signature;
@@ -122,7 +123,12 @@ int main(int argc, char *argv[]) {
         const int32_t integer_array[] = { -1, -2, 0, 1, 2 }, *return_array;
         char *s;
         _cleanup_free_ char *first = NULL, *second = NULL, *third = NULL;
+#ifdef WIN32
+        char *first_name = NULL, * second_name = NULL, *third_name = NULL;
+        FILE* ms = NULL;
+#else
         _cleanup_fclose_ FILE *ms = NULL;
+#endif
         size_t first_size = 0, second_size = 0, third_size = 0;
         _cleanup_(sd_bus_unrefp) sd_bus *bus = NULL;
         double dbl;
@@ -208,6 +214,11 @@ int main(int argc, char *argv[]) {
         fflush(ms);
         assert_se(!ferror(ms));
 
+#ifdef WIN32
+        first_name = first;
+        first = win_read_memstream_tempfile(ms, &first_size);
+#endif
+
         r = bus_message_get_blob(m, &buffer, &sz);
         assert_se(r >= 0);
 
@@ -260,19 +271,24 @@ int main(int argc, char *argv[]) {
         sd_bus_message_dump(m, stdout, SD_BUS_MESSAGE_DUMP_WITH_HEADER);
 
         fclose(ms);
-
 #ifdef WIN32
-        char *content = win_read_memstream_tempfile(first, &first_size);
-        DeleteFile(first);
-        free(first);
-        first = content;
+        if (DeleteFile(first_name)) {
+            printf("delete temp file %s\n", first_name);
+        }
+        else {
+            printf("Failed to delete temp file %s: %s\n", first_name, strerror_safe(GetLastError()));
+        }
+        free(first_name);
 #endif
-
         ms = open_memstream_unlocked(&second, &second_size);
         sd_bus_message_dump(m, ms, 0);
         fflush(ms);
 
         assert_se(!ferror(ms));
+#ifdef WIN32
+        second_name = second;
+        second = win_read_memstream_tempfile(ms, &second_size);
+#endif
         assert_se(first_size == second_size);
         assert_se(memcmp(first, second, first_size) == 0);
 
@@ -375,11 +391,32 @@ int main(int argc, char *argv[]) {
         assert_se(r >= 0);
 
         fclose(ms);
+#ifdef WIN32
+        if (DeleteFile(second_name)) {
+            printf("delete temp file %s\n", second_name);
+        }
+        else {
+            printf("Failed to delete temp file %s: %s\n", second_name, strerror_safe(GetLastError()));
+        }
+        free(second_name);
+#endif
         ms = open_memstream_unlocked(&third, &third_size);
         sd_bus_message_dump(copy, ms, 0);
         fflush(ms);
         assert_se(!ferror(ms));
+#ifdef WIN32
+        third_name = third;
+        third = win_read_memstream_tempfile(ms, &third_size);
 
+        fclose(ms);
+        if (DeleteFile(third_name)) {
+            printf("delete temp file %s\n", third_name);
+        }
+        else {
+            printf("Failed to delete temp file %s: %s\n", third_name, strerror_safe(GetLastError()));
+        }
+        free(third_name);
+#endif
         printf("<%.*s>\n", (int) first_size, first);
         printf("<%.*s>\n", (int) third_size, third);
 
@@ -462,4 +499,14 @@ int main(int argc, char *argv[]) {
         sd_bus_message_unref(msg);
 
         return 0;
+}
+
+int main(int argc, char* argv[]) {
+    test_bus_marshal();
+#ifdef WIN32
+    _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+    _CrtDumpMemoryLeaks();
+#endif
+    return 0;
 }

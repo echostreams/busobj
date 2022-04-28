@@ -788,7 +788,7 @@ char* strextend_with_separator_internal(char** x, const char* separator, ...) {
 
     need_separator = !isempty(*x);
 
-    nr = realloc(*x, GREEDY_ALLOC_ROUND_UP(l + 1));
+    nr = (char*)realloc(*x, GREEDY_ALLOC_ROUND_UP(l + 1));
     if (!nr)
         return NULL;
 
@@ -850,7 +850,7 @@ int strextendf_with_separator(char** x, const char* separator, const char* forma
         if (_unlikely_(m > SIZE_MAX - 64 - l_separator)) /* overflow check #2 */
             return -ENOMEM;
 
-        n = realloc(*x, m + 64 + l_separator);
+        n = (char*)realloc(*x, m + 64 + l_separator);
         if (!n)
             return -ENOMEM;
 
@@ -872,7 +872,7 @@ int strextendf_with_separator(char** x, const char* separator, const char* forma
         /* Nice! This worked. We are done. But first, let's return the extra space we don't
          * need. This should be a cheap operation, since we only lower the allocation size here,
          * never increase. */
-        n = realloc(*x, m + (size_t)l + l_separator + 1);
+        n = (char*)realloc(*x, m + (size_t)l + l_separator + 1);
         if (n)
             *x = n;
     }
@@ -887,7 +887,7 @@ int strextendf_with_separator(char** x, const char* separator, const char* forma
             goto oom;
 
         a = m + (size_t)l + l_separator + 1;
-        n = realloc(*x, a);
+        n = (char*)realloc(*x, a);
         if (!n)
             goto oom;
         *x = n;
@@ -914,7 +914,7 @@ char* strrep(const char* s, unsigned n) {
     assert(s);
 
     l = strlen(s);
-    p = r = malloc(l * n + 1);
+    p = r = (char*)malloc(l * n + 1);
     if (!r)
         return NULL;
 
@@ -943,8 +943,11 @@ int split_pair(const char* s, const char* sep, char** l, char** r) {
     a = strndup(s, x - s);
     if (!a)
         return -ENOMEM;
-
+#ifdef WIN32
+    b = _strdup(x + strlen(sep));
+#else
     b = strdup(x + strlen(sep));
+#endif
     if (!b) {
         free(a);
         return -ENOMEM;
