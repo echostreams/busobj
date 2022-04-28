@@ -2,8 +2,6 @@
 #undef interface
 #endif
 
-
-
 #include <boost/asio/io_context.hpp>
 #include <sdbusplus/asio/connection.hpp>
 #include <boost/asio/signal_set.hpp>

@@ -328,7 +328,25 @@ static int verify_external_token(sd_bus *b, const char *p, size_t l) {
         if (memchr(token, 0, len))
                 return 0;
 
+
+        
+
+#ifdef WIN32
+        char* win_sid;
+        _dbus_getsid(&win_sid, GetCurrentProcessId());
+
+        r = strcmp(token, win_sid);
+
+        LocalFree(win_sid);
+
+        if (r != 0)
+            return 0;
+#else
+
         r = parse_uid(token, &u);
+
+        printf(">> parse_uid('%s', %d)=%d\n", token, u, r);
+
         if (r < 0)
                 return 0;
 
@@ -336,6 +354,7 @@ static int verify_external_token(sd_bus *b, const char *p, size_t l) {
          * on anyway. */
         if (!b->anonymous_auth && u != b->ucred.uid)
                 return 0;
+#endif
 
         return 1;
 }

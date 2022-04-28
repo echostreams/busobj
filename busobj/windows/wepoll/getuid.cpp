@@ -29,7 +29,7 @@ typedef std::unique_ptr<HANDLE, handle_delete> handle_unique_ptr;
 
 typedef uint32_t uid_t;
 
-BOOL GetUserSID(HANDLE token, PSID* sid)
+BOOL _GetUserSID(HANDLE token, PSID* sid)
 {
     if (
         token == nullptr || token == INVALID_HANDLE_VALUE
@@ -85,10 +85,10 @@ BOOL GetUserSID(HANDLE token, PSID* sid)
     return TRUE;
 }
 
-uid_t GetUID(HANDLE token)
+uid_t _GetUID(HANDLE token)
 {
     PSID sid = nullptr;
-    BOOL getSID = GetUserSID(token, &sid);
+    BOOL getSID = _GetUserSID(token, &sid);
     if (!getSID || !sid)
     {
         return -1;
@@ -124,7 +124,7 @@ uid_t getuid()
         return -1;
     }
     handle_unique_ptr tokenPtr(token);
-    uid_t ret = GetUID(token);
+    uid_t ret = _GetUID(token);
     return ret;
 }
 
@@ -150,7 +150,7 @@ uid_t geteuid()
         return -1;
     }
     handle_unique_ptr tokenPtr(token);
-    uid_t ret = GetUID(token);
+    uid_t ret = _GetUID(token);
     return ret;
 }
 
@@ -216,68 +216,77 @@ _dbus_win_warn_win_error(const char* message,
     //dbus_error_free(&error);
 }
 
-/** Gets our SID
- * @param sid points to sid buffer, need to be freed with LocalFree()
- * @param process_id the process id for which the sid should be returned (use 0 for current process)
- * @returns process sid
- */
- /** A process ID */
-typedef unsigned long dbus_pid_t;
-typedef uint32_t dbus_bool_t;
-#define _dbus_verbose printf
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-dbus_bool_t
-_dbus_getsid(char** sid, dbus_pid_t process_id)
-{
-    HANDLE process_token = INVALID_HANDLE_VALUE;
-    TOKEN_USER* token_user = NULL;
-    DWORD n;
-    PSID psid;
-    int retval = FALSE;
+    /** Gets our SID
+     * @param sid points to sid buffer, need to be freed with LocalFree()
+     * @param process_id the process id for which the sid should be returned (use 0 for current process)
+     * @returns process sid
+     */
+     /** A process ID */
+    typedef unsigned long dbus_pid_t;
+    typedef uint32_t dbus_bool_t;
+    #define _dbus_verbose printf
 
-    HANDLE process_handle;
-    if (process_id == 0)
-        process_handle = GetCurrentProcess();
-    else if (is_winxp_sp3_or_lower())
-        process_handle = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, process_id);
-    else
-        process_handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, process_id);
-
-    if (!OpenProcessToken(process_handle, TOKEN_QUERY, &process_token))
+    dbus_bool_t
+        _dbus_getsid(char** sid, dbus_pid_t process_id)
     {
-        _dbus_win_warn_win_error("OpenProcessToken failed", GetLastError());
-        goto failed;
-    }
-    if ((!GetTokenInformation(process_token, TokenUser, NULL, 0, &n)
-        && GetLastError() != ERROR_INSUFFICIENT_BUFFER)
-        || (token_user = (TOKEN_USER * )_malloca(n)) == NULL
-        || !GetTokenInformation(process_token, TokenUser, token_user, n, &n))
-    {
-        _dbus_win_warn_win_error("GetTokenInformation failed", GetLastError());
-        goto failed;
-    }
-    psid = token_user->User.Sid;
-    if (!IsValidSid(psid))
-    {
-        _dbus_verbose("%s invalid sid\n", __FUNCTION__);
-        goto failed;
-    }
-    if (!ConvertSidToStringSidA(psid, sid))
-    {
-        _dbus_verbose("%s invalid sid\n", __FUNCTION__);
-        goto failed;
-    }
-    //okay:
-    retval = TRUE;
+        HANDLE process_token = INVALID_HANDLE_VALUE;
+        TOKEN_USER* token_user = NULL;
+        DWORD n;
+        PSID psid;
+        int retval = FALSE;
 
-failed:
-    CloseHandle(process_handle);
-    if (process_token != INVALID_HANDLE_VALUE)
-        CloseHandle(process_token);
+        HANDLE process_handle;
+        if (process_id == 0)
+            process_handle = GetCurrentProcess();
+        else if (is_winxp_sp3_or_lower())
+            process_handle = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, process_id);
+        else
+            process_handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, process_id);
 
-    _dbus_verbose("_dbus_getsid() got '%s' and returns %d\n", *sid, retval);
-    return retval;
+        if (!OpenProcessToken(process_handle, TOKEN_QUERY, &process_token))
+        {
+            _dbus_win_warn_win_error("OpenProcessToken failed", GetLastError());
+            goto failed;
+        }
+        if ((!GetTokenInformation(process_token, TokenUser, NULL, 0, &n)
+            && GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+            || (token_user = (TOKEN_USER*)_malloca(n)) == NULL
+            || !GetTokenInformation(process_token, TokenUser, token_user, n, &n))
+        {
+            _dbus_win_warn_win_error("GetTokenInformation failed", GetLastError());
+            goto failed;
+        }
+        psid = token_user->User.Sid;
+        if (!IsValidSid(psid))
+        {
+            _dbus_verbose("%s invalid sid\n", __FUNCTION__);
+            goto failed;
+        }
+        if (!ConvertSidToStringSidA(psid, sid))
+        {
+            _dbus_verbose("%s invalid sid\n", __FUNCTION__);
+            goto failed;
+        }
+        //okay:
+        retval = TRUE;
+
+    failed:
+        CloseHandle(process_handle);
+        if (process_token != INVALID_HANDLE_VALUE)
+            CloseHandle(process_token);
+
+        _dbus_verbose("_dbus_getsid() got '%s' and returns %d\n", *sid, retval);
+        return retval;
+    }
+
+#ifdef __cplusplus
 }
+#endif
+
 
 #ifdef GETUID_TEST
 int main()
