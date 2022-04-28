@@ -1060,6 +1060,7 @@ static int process_introspect(
         if (s != NULL)
         {
             free(s);
+            s = NULL;
         }
 #endif
         return 1;
