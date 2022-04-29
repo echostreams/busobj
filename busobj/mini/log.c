@@ -237,3 +237,180 @@ void log_assert_failed_return(
 int log_oom_internal(int level, const char* file, int line, const char* func) {
     return log_internal(level, ENOMEM, file, line, func, "Out of memory.");
 }
+
+int log_struct_internal(
+    int level,
+    int error,
+    const char* file,
+    int line,
+    const char* func,
+    const char* format, ...) {
+
+    char buf[LINE_MAX];
+    bool found = false;
+    PROTECT_ERRNO;
+    va_list ap;
+
+    if (_likely_(LOG_PRI(level) > log_max_level) /* ||
+        log_target == LOG_TARGET_NULL */)
+        return -ERRNO_VALUE(error);
+
+#if 0
+
+    if ((level & LOG_FACMASK) == 0)
+        level |= log_facility;
+
+
+    if (IN_SET(log_target,
+        LOG_TARGET_AUTO,
+        LOG_TARGET_JOURNAL_OR_KMSG,
+        LOG_TARGET_JOURNAL)) {
+
+        if (open_when_needed)
+            log_open_journal();
+
+        if (journal_fd >= 0) {
+            char header[LINE_MAX];
+            struct iovec iovec[17];
+            size_t n = 0;
+            int r;
+            bool fallback = false;
+
+            /* If the journal is available do structured logging.
+             * Do not report the errno if it is synthetic. */
+            log_do_header(header, sizeof(header), level, error, file, line, func, NULL, NULL, NULL, NULL);
+            iovec[n++] = IOVEC_MAKE_STRING(header);
+
+            va_start(ap, format);
+            r = log_format_iovec(iovec, ELEMENTSOF(iovec), &n, true, error, format, ap);
+            if (r < 0)
+                fallback = true;
+            else {
+                const struct msghdr msghdr = {
+                        .msg_iov = iovec,
+                        .msg_iovlen = n,
+                };
+
+                (void)sendmsg(journal_fd, &msghdr, MSG_NOSIGNAL);
+            }
+
+            va_end(ap);
+            for (size_t i = 1; i < n; i += 2)
+                free(iovec[i].iov_base);
+
+            if (!fallback) {
+                if (open_when_needed)
+                    log_close();
+
+                return -ERRNO_VALUE(error);
+            }
+        }
+    }
+#endif
+
+    /* Fallback if journal logging is not available or didn't work. */
+
+    va_start(ap, format);
+    while (format) {
+        va_list aq;
+
+        errno = ERRNO_VALUE(error);
+
+        va_copy(aq, ap);
+        (void)vsnprintf(buf, sizeof buf, format, aq);
+        va_end(aq);
+
+        if (startswith(buf, "MESSAGE=")) {
+            found = true;
+            break;
+        }
+
+        //VA_FORMAT_ADVANCE(format, ap);
+
+        format = va_arg(ap, char*);
+    }
+    va_end(ap);
+
+    //if (!found) {
+    //    if (open_when_needed)
+    //        log_close();
+    //
+    //    return -ERRNO_VALUE(error);
+    //}
+
+    return log_dispatch_internal(level, error, file, line, func, NULL, NULL, NULL, NULL, buf + 8);
+}
+
+int log_syntax_internal(
+    const char* unit,
+    int level,
+    const char* config_file,
+    unsigned config_line,
+    int error,
+    const char* file,
+    int line,
+    const char* func,
+    const char* format, ...) {
+
+    //if (log_syntax_callback)
+    //    log_syntax_callback(unit, level, log_syntax_callback_userdata);
+
+    PROTECT_ERRNO;
+    char buffer[LINE_MAX];
+    va_list ap;
+    const char* unit_fmt = NULL;
+
+    if (_likely_(LOG_PRI(level) > log_max_level) /* ||
+        log_target == LOG_TARGET_NULL*/)
+        return -ERRNO_VALUE(error);
+
+    errno = ERRNO_VALUE(error);
+
+    va_start(ap, format);
+    (void)vsnprintf(buffer, sizeof buffer, format, ap);
+    va_end(ap);
+
+    if (unit)
+        unit_fmt = getpid_cached() == 1 ? "UNIT=%s" : "USER_UNIT=%s";
+
+    if (config_file) {
+        if (config_line > 0)
+            return log_struct_internal(
+                level,
+                error,
+                file, line, func,
+                "MESSAGE_ID=" SD_MESSAGE_INVALID_CONFIGURATION_STR,
+                "CONFIG_FILE=%s", config_file,
+                "CONFIG_LINE=%u", config_line,
+                LOG_MESSAGE("%s:%u: %s", config_file, config_line, buffer),
+                unit_fmt, unit,
+                NULL);
+        else
+            return log_struct_internal(
+                level,
+                error,
+                file, line, func,
+                "MESSAGE_ID=" SD_MESSAGE_INVALID_CONFIGURATION_STR,
+                "CONFIG_FILE=%s", config_file,
+                LOG_MESSAGE("%s: %s", config_file, buffer),
+                unit_fmt, unit,
+                NULL);
+    }
+    else if (unit)
+        return log_struct_internal(
+            level,
+            error,
+            file, line, func,
+            "MESSAGE_ID=" SD_MESSAGE_INVALID_CONFIGURATION_STR,
+            LOG_MESSAGE("%s: %s", unit, buffer),
+            unit_fmt, unit,
+            NULL);
+    else
+        return log_struct_internal(
+            level,
+            error,
+            file, line, func,
+            "MESSAGE_ID=" SD_MESSAGE_INVALID_CONFIGURATION_STR,
+            LOG_MESSAGE("%s", buffer),
+            NULL);
+}

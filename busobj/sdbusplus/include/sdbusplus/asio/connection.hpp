@@ -345,6 +345,7 @@ class connection : public sdbusplus::bus_t
 
     void read_wait()
     {
+        printf(">>>> read_wait...\n");
         socket.async_read_some(
             boost::asio::null_buffers(),
             [&](const boost::system::error_code& ec, std::size_t) {

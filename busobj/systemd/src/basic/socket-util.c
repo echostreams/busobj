@@ -1295,6 +1295,7 @@ ssize_t recvmsg_safe(int sockfd, struct msghdr *msg, int flags) {
          * Note that unlike our usual coding style this might modify *msg on failure. */
 
         n = recvmsg(sockfd, msg, flags);
+
         if (n < 0)
                 return -errno;
 

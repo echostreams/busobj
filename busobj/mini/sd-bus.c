@@ -786,7 +786,6 @@ _public_ int sd_bus_new(sd_bus** ret) {
             .creds_mask = SD_BUS_CREDS_WELL_KNOWN_NAMES | SD_BUS_CREDS_UNIQUE_NAME,
             .accept_fd = true,
             .original_pid = getpid_cached(),
-            //.original_pid = 0,
             .n_groups = SIZE_MAX,
             .close_on_exit = true,
             .ucred = UCRED_INVALID,

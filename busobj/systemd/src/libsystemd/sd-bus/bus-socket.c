@@ -133,8 +133,10 @@ static int bus_socket_write_auth(sd_bus *b) {
         if (!bus_socket_auth_needs_write(b))
                 return 0;
 
-        if (b->prefer_writev)
-                k = writev(b->output_fd, b->auth_iovec + b->auth_index, ELEMENTSOF(b->auth_iovec) - b->auth_index);
+        if (b->prefer_writev) {
+            k = writev(b->output_fd, b->auth_iovec + b->auth_index, ELEMENTSOF(b->auth_iovec) - b->auth_index);
+            printf(">>  writev: %d\n", k);
+        }
         else {
 #ifdef WIN32
                 k = writev(b->output_fd, b->auth_iovec + b->auth_index, ELEMENTSOF(b->auth_iovec) - b->auth_index);
@@ -145,6 +147,7 @@ static int bus_socket_write_auth(sd_bus *b) {
                 };
 
                 k = sendmsg(b->output_fd, &mh, MSG_DONTWAIT|MSG_NOSIGNAL);
+                printf(">>  sendmsg: %d\n", k);
 #endif
                 if (k < 0 && errno == ENOTSOCK) {
                         b->prefer_writev = true;
@@ -366,11 +369,16 @@ static int bus_socket_auth_write(sd_bus *b, const char *t) {
         assert(b);
         assert(t);
 
+        
+
         /* We only make use of the first iovec */
         //assert(IN_SET(b->auth_index, 0, 1));
         assert((b->auth_index == 0 || b->auth_index == 1));
 
         l = strlen(t);
+
+        printf("    > %.*s\n", l, t);
+
         p = malloc(b->auth_iovec[0].iov_len + l);
         if (!p)
                 return -ENOMEM;
@@ -393,6 +401,8 @@ static int bus_socket_auth_write_ok(sd_bus *b) {
         assert(b);
 
         xsprintf(t, "OK " SD_ID128_FORMAT_STR "\r\n", SD_ID128_FORMAT_VAL(b->server_id));
+
+        //printf("    %s\n", t);
 
         return bus_socket_auth_write(b, t);
 }
@@ -423,12 +433,16 @@ static int bus_socket_auth_verify_server(sd_bus *b) {
         for (;;) {
                 /* Check if line is complete */
                 line = (char*) b->rbuffer + b->auth_rbegin;
+                
+                
 
                 e = memmem_safe(line, b->rbuffer_size - b->auth_rbegin, "\r\n", 2);
                 if (!e)
                         return processed;
 
                 l = e - line;
+
+                printf("    < %.*s\n", l, line);
 
                 if (line_begins(line, l, "AUTH ANONYMOUS")) {
 
@@ -1121,8 +1135,10 @@ int bus_socket_write_message(sd_bus *bus, sd_bus_message *m, size_t *idx) {
         j = 0;
         iovec_advance(iov, &j, *idx);
 
-        if (bus->prefer_writev)
-                k = writev(bus->output_fd, iov, m->n_iovec);
+        if (bus->prefer_writev) {
+            k = writev(bus->output_fd, iov, m->n_iovec);
+            printf(">> writev: %d\n", k);
+        }
         else {
 #ifdef WIN32
                 k = writev(bus->output_fd, iov, m->n_iovec);
@@ -1145,6 +1161,7 @@ int bus_socket_write_message(sd_bus *bus, sd_bus_message *m, size_t *idx) {
                 }
 
                 k = sendmsg(bus->output_fd, &mh, MSG_DONTWAIT|MSG_NOSIGNAL);
+                printf(">> sendmsg: %d\n", k);
 #endif
                 if (k < 0 && errno == ENOTSOCK) {
                         bus->prefer_writev = true;

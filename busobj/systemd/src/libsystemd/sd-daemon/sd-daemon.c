@@ -32,6 +32,48 @@
 
 #define SNDBUF_SIZE (8*1024*1024)
 
+#ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <io.h>
+#include <fcntl.h>
+
+#ifndef S_ISFIFO
+#   ifdef _S_IFIFO
+#       define S_ISFIFO(m) (((m) & _S_IFMT) == _S_IFIFO)
+#   else
+#       define S_ISFIFO(m) 0
+#   endif
+# endif
+#ifndef S_ISREG
+#   ifdef _S_IFREG
+#       define S_ISREG(m) (((m) & _S_IFMT) == _S_IFREG)
+#   else
+#       define S_ISREG(m) 0
+#   endif
+# endif
+#ifndef S_ISSOCK
+#   ifdef _S_IFIFO
+#       define S_ISSOCK(m) (((m) & _S_IFMT) == _S_IFIFO)
+#   else
+#       define S_ISSOCK(m) 0
+#   endif
+# endif
+#ifndef S_ISCHR
+#   ifdef _S_IFCHR
+#       define S_ISCHR(m) (((m) & _S_IFMT) == _S_IFCHR)
+#   else
+#       define S_ISCHR(m) 0
+#   endif
+# endif
+
+int unsetenv(const char* name)
+{
+    return 0;
+}
+
+#endif
+
 static void unsetenv_all(bool unset_environment) {
         if (!unset_environment)
                 return;
@@ -92,6 +134,7 @@ finish:
 }
 
 _public_ int sd_listen_fds_with_names(int unset_environment, char ***names) {
+#if defined(__linux__)
         _cleanup_strv_free_ char **l = NULL;
         bool have_names;
         int n_names = 0, n_fds;
@@ -131,9 +174,13 @@ _public_ int sd_listen_fds_with_names(int unset_environment, char ***names) {
         l = NULL;
 
         return n_fds;
+#else
+    return 0;
+#endif
 }
 
 _public_ int sd_is_fifo(int fd, const char *path) {
+#if defined(__linux__)
         struct stat st_fd;
 
         assert_return(fd >= 0, -EBADF);
@@ -160,9 +207,13 @@ _public_ int sd_is_fifo(int fd, const char *path) {
         }
 
         return 1;
+#else
+    return 0;
+#endif
 }
 
 _public_ int sd_is_special(int fd, const char *path) {
+#if defined(__linux__)
         struct stat st_fd;
 
         assert_return(fd >= 0, -EBADF);
@@ -194,6 +245,9 @@ _public_ int sd_is_special(int fd, const char *path) {
         }
 
         return 1;
+#else
+    return 0;
+#endif
 }
 
 static int sd_is_socket_internal(int fd, int type, int listening) {
@@ -202,11 +256,18 @@ static int sd_is_socket_internal(int fd, int type, int listening) {
         assert_return(fd >= 0, -EBADF);
         assert_return(type >= 0, -EINVAL);
 
+#ifdef WIN32
+        int osfd = _open_osfhandle(fd, _O_RDONLY);
+        if (_fstat(osfd, &st_fd) < 0)
+            return -errno;
+#else
         if (fstat(fd, &st_fd) < 0)
                 return -errno;
+#endif
 
         if (!S_ISSOCK(st_fd.st_mode))
                 return 0;
+
 
         if (type != 0) {
                 int other_type = 0;
@@ -416,6 +477,7 @@ _public_ int sd_is_socket_unix(int fd, int type, int listening, const char *path
 }
 
 _public_ int sd_is_mq(int fd, const char *path) {
+#ifdef ENABLE_MQ
         struct mq_attr attr;
 
         /* Check that the fd is valid */
@@ -449,6 +511,9 @@ _public_ int sd_is_mq(int fd, const char *path) {
         }
 
         return 1;
+#else
+    return 0;
+#endif
 }
 
 _public_ int sd_pid_notify_with_fds(
@@ -457,7 +522,7 @@ _public_ int sd_pid_notify_with_fds(
                 const char *state,
                 const int *fds,
                 unsigned n_fds) {
-
+#if defined(__linux__)
         union sockaddr_union sockaddr;
         struct iovec iovec;
         struct msghdr msghdr = {
@@ -490,7 +555,11 @@ _public_ int sd_pid_notify_with_fds(
                 goto finish;
         msghdr.msg_namelen = r;
 
+#ifdef WIN32
+        fd = socket(AF_UNIX, SOCK_DGRAM, 0);
+#else
         fd = socket(AF_UNIX, SOCK_DGRAM|SOCK_CLOEXEC, 0);
+#endif
         if (fd < 0) {
                 r = -errno;
                 goto finish;
@@ -564,9 +633,13 @@ finish:
                 assert_se(unsetenv("NOTIFY_SOCKET") == 0);
 
         return r;
+#else
+        return 1;
+#endif
 }
 
 _public_ int sd_notify_barrier(int unset_environment, uint64_t timeout) {
+#if defined(__linux__)
         _cleanup_close_pair_ int pipe_fd[2] = { -1, -1 };
         int r;
 
@@ -584,7 +657,7 @@ _public_ int sd_notify_barrier(int unset_environment, uint64_t timeout) {
                 return r;
         if (r == 0)
                 return -ETIMEDOUT;
-
+#endif
         return 1;
 }
 
@@ -636,7 +709,7 @@ _public_ int sd_booted(void) {
         /* We test whether the runtime unit file directory has been
          * created. This takes place in mount-setup.c, so is
          * guaranteed to happen very early during boot. */
-
+#if defined(__linux__)
         if (laccess("/run/systemd/system/", F_OK) >= 0)
                 return true;
 
@@ -644,6 +717,9 @@ _public_ int sd_booted(void) {
                 return false;
 
         return -errno;
+#else
+        return false;
+#endif
 }
 
 _public_ int sd_watchdog_enabled(int unset_environment, uint64_t *usec) {

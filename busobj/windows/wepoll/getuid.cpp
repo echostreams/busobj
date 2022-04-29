@@ -1,3 +1,5 @@
+#if defined(_WIN32) || defined(_WIN64)
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <Windows.h>
@@ -299,4 +301,6 @@ int main()
         << std::endl;
     return EXIT_SUCCESS;
 }
+#endif
+
 #endif

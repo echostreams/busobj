@@ -229,7 +229,7 @@ rollback:
     return -ENOMEM;
 }
 
-#if FULL_STRV
+
 int strv_extend_strv_concat(char*** a, char* const* b, const char* suffix) {
     char* const* s;
     int r;
@@ -379,7 +379,7 @@ int strv_split_colon_pairs(char*** t, const char* s) {
 
     return (int)n;
 }
-#endif
+
 
 char* strv_join_full(char* const* l, const char* separator, const char* prefix, bool unescape_separators) {
     char* const* s;

@@ -320,6 +320,7 @@ add_library(libsystemd-mini
 	"systemd/src/shared/bus-object.c"
 	"systemd/src/shared/bus-print-properties.c"
 	#"systemd/src/shared/varlink.c"
+	"systemd/src/basic/extract-word.c"
 
 	"windows/asprintf.c"
 	"windows/strndup.c"
@@ -337,7 +338,7 @@ add_library(libsystemd-mini
 	"systemd/src/busctl/busctl-introspect.c"
 
 	#"systemd/src/libsystemd/sd-event/sd-event.c"
-	#"systemd/src/libsystemd/sd-daemon/sd-daemon.c"
+	"systemd/src/libsystemd/sd-daemon/sd-daemon.c"
 	"systemd/src/libsystemd/sd-id128/sd-id128.c"
 	"systemd/src/libsystemd/sd-id128/id128-util.c"
 )

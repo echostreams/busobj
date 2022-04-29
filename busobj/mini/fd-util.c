@@ -220,3 +220,30 @@ int fd_get_path(int fd, char** ret) {
 	return 0;
 #endif
 }
+
+
+void safe_close_pair(int p[/*static*/ 2]) {
+	assert(p);
+
+	if (p[0] == p[1]) {
+		/* Special case pairs which use the same fd in both
+		 * directions... */
+		p[0] = p[1] = safe_close(p[0]);
+		return;
+	}
+
+	p[0] = safe_close(p[0]);
+	p[1] = safe_close(p[1]);
+}
+
+bool stat_inode_same(const struct stat* a, const struct stat* b) {
+
+	/* Returns if the specified stat structure references the same (though possibly modified) inode. Does
+	 * a thorough check, comparing inode nr, backing device and if the inode is still of the same type. */
+
+	return a && b &&
+		(a->st_mode & S_IFMT) != 0 && /* We use the check for .st_mode if the structure was ever initialized */
+		((a->st_mode ^ b->st_mode) & S_IFMT) == 0 &&  /* same inode type */
+		a->st_dev == b->st_dev &&
+		a->st_ino == b->st_ino;
+}
