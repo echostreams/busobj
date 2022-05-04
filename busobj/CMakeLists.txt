@@ -51,6 +51,7 @@ message(STATUS "CMAKE_CXX_BYTE_ORDER: ${CMAKE_CXX_BYTE_ORDER}")
 include_directories(
 	"systemd/src/systemd"
 	"systemd/src/libsystemd/sd-bus"
+	"systemd/src/libsystemd/sd-id128"
 	"systemd/src/basic"
 	"systemd/src/fundamental"
 	"systemd/src/shared"
@@ -101,6 +102,7 @@ add_definitions(-DFALLBACK_HOSTNAME="buildroot")
 add_definitions(-DDEFAULT_HIERARCHY_NAME="hybrid")
 add_definitions(-DSYSTEMD_TEST_DATA="./testdata")
 add_definitions(-DSYSTEMD_CATALOG_DIR="./catalog")
+add_definitions(-DSYSTEMD_TTY_ASK_PASSWORD_AGENT_BINARY_PATH="/bin/systemd-tty-ask-password-agent")
 add_definitions(-DSYSTEMD_SLOW_TESTS_DEFAULT=0)
 add_definitions(-DBUILD_MODE_DEVELOPER)
 add_definitions(-DSIZEOF_TIME_T=8)
@@ -190,6 +192,10 @@ add_library(libsystemd
 	"systemd/src/basic/os-util.c"
 	"systemd/src/basic/cap-list.c"
 	"systemd/src/basic/unit-def.c"
+	"systemd/src/basic/in-addr-util.c"
+	"systemd/src/basic/ether-addr-util.c"
+	"systemd/src/basic/conf-files.c"
+	"systemd/src/basic/process-util.c"
 
 	"systemd/src/libsystemd/disable-mempool.c"
 	"systemd/src/libsystemd/sd-bus/sd-bus.c"
@@ -211,13 +217,28 @@ add_library(libsystemd
 	"systemd/src/libsystemd/sd-bus/bus-socket.c"
 	"systemd/src/libsystemd/sd-bus/bus-track.c"
 	"systemd/src/libsystemd/sd-bus/bus-dump.c"
-
+	"systemd/src/libsystemd/sd-bus/bus-common-errors.c"
 	"systemd/src/libsystemd/sd-event/sd-event.c"
 
 	"systemd/src/libsystemd/sd-id128/sd-id128.c"
 	"systemd/src/libsystemd/sd-id128/id128-util.c"
 
 	"systemd/src/libsystemd/sd-daemon/sd-daemon.c"
+
+	"systemd/src/shared/json.c"
+	"systemd/src/shared/xml.c"
+	"systemd/src/shared/format-table.c"
+	"systemd/src/shared/parse-argument.c"
+	"systemd/src/shared/bus-util.c"
+	"systemd/src/shared/pretty-print.c"
+	"systemd/src/shared/pager.c"
+	"systemd/src/shared/verbs.c"
+	"systemd/src/shared/spawn-ask-password-agent.c"
+	"systemd/src/shared/spawn-polkit-agent.c"
+	"systemd/src/shared/selinux-util.c"
+	#"systemd/src/shared/copy.c"
+
+	#"systemd/src/libsystemd/sd-login/sd-login.c"
 )
 
 target_compile_definitions(libsystemd PRIVATE FULL_STRV)
@@ -405,14 +426,29 @@ add_executable(objmgr objmgr.cpp
 	"sdbusplus/src/server/transaction.cpp"
 	"sdbusplus/src/message/native_types.cpp"
 )
+
+add_executable(objpeer objpeer.cpp
+	"sdbusplus/src/sdbus.cpp"
+	"sdbusplus/src/bus.cpp"
+	"sdbusplus/src/exception.cpp"
+	"sdbusplus/src/server/interface.cpp"
+	"sdbusplus/src/server/transaction.cpp"
+	"sdbusplus/src/message/native_types.cpp"
+)
+
 target_compile_features(libsystemd-mini PRIVATE cxx_std_20)
 target_compile_features(objmgr PRIVATE cxx_std_20)
+target_compile_features(objpeer PRIVATE cxx_std_20)
 if(MSVC)
 	target_compile_definitions(objmgr PRIVATE -D__EXCEPTIONS)
 	target_compile_options(objmgr PRIVATE /EHsc /W3)
 	target_link_libraries(objmgr ${Boost_LIBRARIES} Boost::thread libsystemd-mini)
+	target_compile_definitions(objpeer PRIVATE -D__EXCEPTIONS)
+	target_compile_options(objpeer PRIVATE /EHsc /W3)
+	target_link_libraries(objpeer ${Boost_LIBRARIES} Boost::thread libsystemd-mini)
 else()
-	target_link_libraries(objmgr ${Boost_LIBRARIES} Boost::thread libsystemd cap rt)
+	target_link_libraries(objmgr ${Boost_LIBRARIES} Boost::thread libsystemd-mini)
+	target_link_libraries(objpeer ${Boost_LIBRARIES} Boost::thread libsystemd-mini)
 endif()
 
 
@@ -433,10 +469,10 @@ else()
 	target_link_libraries(test-socketpair pthread)
 endif()
 
-add_executable(busctl "systemd/src/busctl/busctl.c")
+add_executable(busctl "systemd/src/busctl/busctl.c" "systemd/src/busctl/busctl-introspect.c" )
 target_link_libraries(busctl libsystemd)
 if(WIN32)
 	target_link_libraries(busctl ws2_32)
 else()
-	target_link_libraries(busctl pthread)
+	target_link_libraries(busctl pthread cap rt m)
 endif()

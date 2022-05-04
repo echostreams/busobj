@@ -36,13 +36,13 @@ static bool stderr_redirected = false;
 
 _noreturn_ static void pager_fallback(void) {
         int r;
-
+#if ENABLE_PAGER_FALLBACK
         r = copy_bytes(STDIN_FILENO, STDOUT_FILENO, UINT64_MAX, 0);
         if (r < 0) {
                 log_error_errno(r, "Internal pager failed: %m");
                 _exit(EXIT_FAILURE);
         }
-
+#endif
         _exit(EXIT_SUCCESS);
 }
 
@@ -180,12 +180,16 @@ void pager_open(PagerFlags flags) {
                 bool trust_pager = use_secure_mode >= 0;
                 if (use_secure_mode == -ENXIO) {
                         uid_t uid;
-
+#if ENABLE_PAGER_SECURE_MODE
                         r = sd_pid_get_owner_uid(0, &uid);
                         if (r < 0)
                                 log_debug_errno(r, "sd_pid_get_owner_uid() failed, enabling pager secure mode: %m");
 
                         use_secure_mode = r < 0 || uid != geteuid();
+#else
+                        use_secure_mode = false;
+#endif
+
 
                 } else if (use_secure_mode < 0) {
                         log_warning_errno(use_secure_mode, "Unable to parse $SYSTEMD_PAGERSECURE, assuming true: %m");

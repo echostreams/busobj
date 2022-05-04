@@ -230,7 +230,7 @@ int sockaddr_pretty(
             }
             else {
                 if (sa->in6.sin6_scope_id != 0)
-                    ;//p = strjoin(a, "%", FORMAT_IFNAME_FULL(sa->in6.sin6_scope_id, FORMAT_IFNAME_IFINDEX));                    
+                    ;// p = strjoin(a, "%", FORMAT_IFNAME_FULL(sa->in6.sin6_scope_id, FORMAT_IFNAME_IFINDEX));
                 else
                     p = strdup(a);
                 if (!p)

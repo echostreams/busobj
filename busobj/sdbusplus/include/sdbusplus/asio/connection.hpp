@@ -348,9 +348,13 @@ class connection : public sdbusplus::bus_t
         printf(">>>> read_wait...\n");
         socket.async_read_some(
             boost::asio::null_buffers(),
-            [&](const boost::system::error_code& ec, std::size_t) {
+                               [&](const boost::system::error_code& ec,
+                                   std::size_t bytes_transferred) {
+                //printf(">> async_read_some size: %ld\n", bytes_transferred);
+                //printf(">> async_read_some error: %s\n", ec.message().c_str());
                 if (ec)
                 {
+                    printf(">> async_read_some error: %s\n", ec.message().c_str());
                     return;
                 }
                 if (process_discard())

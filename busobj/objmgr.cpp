@@ -214,6 +214,12 @@ extern "C" void bus_message_set_sender_local(sd_bus * bus, sd_bus_message * m);
 extern "C" void bus_iteration_counter_increase(sd_bus * bus);
 extern "C" void log_set_max_level(int);
 extern "C" int bus_ensure_running(sd_bus * bus);
+extern "C" int sockaddr_pretty(
+	const struct sockaddr* _sa,
+	socklen_t salen,
+	bool translate_ipv6,
+	bool include_port,
+	char** ret);
 
 #define assert_se assert
 
@@ -276,6 +282,18 @@ int peer_server(int fd)
 
 
 	iface->initialize();
+
+	std::shared_ptr<sdbusplus::asio::dbus_interface> dbusIntf =
+		server.add_interface("/org/freedesktop/DBus",
+			"org.freedesktop.DBus");
+
+	dbusIntf->register_method(
+		"Hello", []() {
+			printf(">> calling org.freedesktop.DBus.Hello...\n");
+			return std::string(":1.22");
+		});
+
+	dbusIntf->initialize();
 	
 	//io.post([&]() {
 	//	doListNames(io, interface_map, system_bus.get(), name_owners,
@@ -315,8 +333,13 @@ int peer_server(int fd)
 	bus_process_object(bus, m.get());
 #endif
 
-	io.run();
+	try {
 
+		io.run();
+	}
+	catch (std::exception& e) {
+		printf("--exception: %s\n", e.what());
+	}
 	printf("..>>..>>..>>..\n");
 
 	return 0;
@@ -420,6 +443,16 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
+	char* bindaddr;
+#ifdef WIN32
+	sockaddr_pretty((const struct sockaddr*)res->ai_addr, res->ai_addrlen,
+		true, true, &bindaddr);
+#else
+	sockaddr_pretty((const struct sockaddr*)&local, loclen,
+		true, true, &bindaddr);
+#endif
+	
+
 #ifdef WIN32
 	// Free the res linked list after we are done with it	
 	freeaddrinfo(res);
@@ -443,16 +476,17 @@ int main(int argc, char** argv)
 	char s[INET6_ADDRSTRLEN]; // an empty string 
 
 	// Calculate the size of the data structure	
-	addr_size = sizeof(client_addr);
+	addr_size = sizeof(client_addr);	
 
-	printf("I am now accepting connections ...\n");
+	printf("I am now accepting connections at %s ...\n", bindaddr);
+	free(bindaddr);
 
 	while (1) {
 		// Accept a new connection and return back the socket desciptor 
 #ifdef WIN32
 		new_conn_fd = ::accept(listner, (struct sockaddr*)&client_addr, &addr_size);
 #else
-		new_conn_fd = ::accept4(listner, NULL, NULL, /*SOCK_NONBLOCK | */ SOCK_CLOEXEC);
+		new_conn_fd = ::accept4(listner, NULL, NULL, SOCK_NONBLOCK | SOCK_CLOEXEC);
 #endif
 		if (new_conn_fd < 0)
 		{
@@ -472,8 +506,10 @@ int main(int argc, char** argv)
 		}
 #endif
 		
-		
+
 		peer_server(new_conn_fd);
+
+		
 		
 #ifdef _WIN32
 		closesocket(new_conn_fd);

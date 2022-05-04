@@ -1380,6 +1380,7 @@ ssize_t readv(int fildes, const struct iovec *iov, int iovcnt)
 
 ssize_t writev(int fildes, const struct iovec *iov, int iovcnt)
 {
+#if USE_WIN_WRITEV_IOV
 	int i;
 	DWORD bytes_written = 0;
 
@@ -1392,7 +1393,12 @@ ssize_t writev(int fildes, const struct iovec *iov, int iovcnt)
 
 		if (len == SOCKET_ERROR) {
 			DWORD err = GetLastError();
-			errno = win_to_posix_error(err);
+			printf(">>  Error: %ld\n", err);
+			if (err == WSAEWOULDBLOCK)
+				errno = EAGAIN;
+			else
+				errno = win_to_posix_error(err);
+
 			bytes_written = -1;
 			break;
 		}
@@ -1400,6 +1406,28 @@ ssize_t writev(int fildes, const struct iovec *iov, int iovcnt)
 	}
 
 	return bytes_written;
+#else
+	DWORD NumberBytesSent = 0;
+	int rc;
+	DWORD err;
+	LPWSABUF buf = (LPWSABUF)malloc(sizeof(WSABUF) * iovcnt);
+	for (int i = 0; i < iovcnt; i++) {
+		buf[i].buf = (CHAR*)(iov[i].iov_base);
+		buf[i].len = iov[i].iov_len;
+	}
+
+	rc = WSASend(fildes, buf, iovcnt, &NumberBytesSent, 0, NULL, NULL);
+	printf(">> WSASend BytesSent: %ld, returns: %d\n", NumberBytesSent, rc);
+	free(buf);
+	if ((rc == SOCKET_ERROR) &&
+		(WSA_IO_PENDING != (err = WSAGetLastError()))) {
+		printf("WSASend failed with error: %d\n", err);
+		return -err;
+	}
+
+	return NumberBytesSent;
+
+#endif
 }
 
 long long _strtoll(const char */*restrict*/ str, char** /*restrict*/ endptr, int base)

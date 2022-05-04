@@ -558,6 +558,8 @@ static int hello_callback(sd_bus_message *reply, void *userdata, sd_bus_error *e
         //assert(IN_SET(bus->state, BUS_HELLO, BUS_CLOSING));
         assert((bus->state == BUS_HELLO || bus->state == BUS_CLOSING));
 
+        sd_bus_message_dump(reply, stdout, SD_BUS_MESSAGE_DUMP_WITH_HEADER);
+
         r = sd_bus_message_get_errno(reply);
         if (r > 0) {
                 r = -r;
@@ -2484,7 +2486,9 @@ _public_ int sd_bus_call(
 
                                         if (incoming->n_fds <= 0 || bus->accept_fd) {
                                                 if (reply) {
-                                                    //*reply = TAKE_PTR(incoming);
+                                                    /*
+                                                     *reply = TAKE_PTR(incoming);
+                                                     */
                                                     *reply = incoming;
                                                     incoming = NULL;
                                                 }
