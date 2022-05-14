@@ -275,6 +275,11 @@ target_link_libraries(bus-service pthread cap rt)
 
 target_link_libraries(test-bus-server libsystemd pthread cap rt)
 
+else()
+	#add bus-service to windows
+	add_executable (bus-service "bus-service.c")
+	target_include_directories(bus-service PRIVATE "systemd/src/")
+	target_link_libraries(bus-service libsystemd-mini ws2_32)
 endif()
 
 add_library(libsystemd-mini 

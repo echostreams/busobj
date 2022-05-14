@@ -354,8 +354,8 @@ static int parse_tcp_address(sd_bus* b, const char** p, char** guid) {
     assert(*p);
     assert(guid);
 
-    //while (!IN_SET(**p, 0, ';')) {
-    while (!(**p == 0 || **p == ';')) {
+    while (!IN_SET(**p, 0, ';')) {
+    //while (!(**p == 0 || **p == ';')) {
         r = parse_address_key(p, "guid", guid);
         if (r < 0)
             return r;

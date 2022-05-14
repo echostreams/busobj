@@ -268,6 +268,7 @@ int peer_server(int fd)
 #endif
 
 	interface_map_type interface_map;
+
 	boost::container::flat_map<std::string, std::string> name_owners;
 
 	std::shared_ptr<sdbusplus::asio::dbus_interface> iface =
