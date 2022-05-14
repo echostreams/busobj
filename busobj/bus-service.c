@@ -3,6 +3,10 @@
 #include <errno.h>
 #include <systemd/sd-bus.h>
 
+#ifdef WIN32
+#include <WinSock2.h>
+#endif
+
 static int method_multiply(sd_bus_message* m, void* userdata, sd_bus_error* ret_error) {
     int64_t x, y;
     int r;
@@ -51,6 +55,18 @@ int main(int argc, char* argv[]) {
     sd_bus* bus = NULL;
     int r;
 
+#ifdef WIN32
+
+    WSADATA wsaData;
+    int iResult;
+    // Initialize Winsock
+    iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    if (iResult != 0) {
+        printf("WSAStartup failed: %d\n", iResult);
+        return 1;
+    }
+#endif
+
     /* Connect to the user bus this time */
     r = sd_bus_open_user(&bus);
     if (r < 0) {
@@ -98,6 +114,10 @@ int main(int argc, char* argv[]) {
 finish:
     sd_bus_slot_unref(slot);
     sd_bus_unref(bus);
+
+#ifdef WIN32
+    WSACleanup();
+#endif
 
     return r < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }
